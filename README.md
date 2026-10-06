@@ -18,7 +18,9 @@ Nom de produit provisoire : modifiable dans `src/lib/config.ts`.
 | Journal d'activité | Fait |
 | Registre des risques : matrice probabilité × impact, 12 risques types pour TPE/PME, lien vers les contrôles qui les réduisent | Fait |
 | Incidents : registre, échéances NIS2 24 h / 72 h / 1 mois avec décompte, retour d'expérience | Fait |
-| Modèles prêts à signer (politique de sécurité, charte informatique, procédure incident), pré-remplis, imprimables en PDF, enregistrés comme preuve une fois signés | Fait |
+| 6 modèles prêts à signer (politique de sécurité, charte informatique, procédure incident, plan de sauvegarde, plan de continuité, revue de direction alimentée par les données réelles), imprimables en PDF, enregistrés comme preuve une fois signés | Fait |
+| Dossier d'audit complet (synthèse, SoA, gouvernance, preuves, risques, incidents, journal), exportable en PDF | Fait |
+| Tests automatiques des calculs métier (`npm test`, 23 tests) | Fait |
 | Schéma Supabase (tables, RLS, RPC de création d'organisation, bucket de preuves, vue d'alertes) | Écrit et testé sur PostgreSQL 16, **pas encore appliqué** |
 | Branchement Supabase (auth, lecture/écriture, dépôt réel des fichiers) | À faire dès que le projet Supabase Pro existe |
 
@@ -38,6 +40,7 @@ npm run dev          # http://localhost:3000
 Scripts utiles :
 
 ```bash
+npm test                # tests des calculs (statut NIS2, applicabilité, score, alertes, échéances)
 npm run check:catalog   # vérifie que chaque exigence est couverte et qu'aucun id n'est cassé
 npm run seed:generate   # régénère supabase/seed.sql depuis le catalogue TypeScript
 ```
@@ -68,7 +71,6 @@ Formalize est une plateforme GRC généraliste (8 000+ clients, 80 pays, ISO 270
 ## Prochaines étapes
 
 1. Supabase : auth par lien magique, multi-organisations, dépôt de fichiers, invitations (dont rôle auditeur en lecture seule).
-2. Modèles supplémentaires (plan de sauvegarde, plan de continuité, revue de direction, registre des fournisseurs).
+2. Registre des fournisseurs critiques avec questionnaire sécurité à leur envoyer.
 3. Rappels par email (preuves qui expirent, échéances) via une tâche planifiée sur la vue `org_alerts`.
-4. Export PDF du dossier d'audit.
-5. Référentiel ReCyF de l'ANSSI en correspondance avec les contrôles existants.
+4. Référentiel ReCyF de l'ANSSI en correspondance avec les contrôles existants.

@@ -16,6 +16,7 @@ const NAV = [
   { href: "/documents", label: "Documents" },
   { href: "/applicabilite", label: "Déclaration d'applicabilité" },
   { href: "/nis2", label: "NIS2" },
+  { href: "/dossier-audit", label: "Dossier d'audit" },
   { href: "/journal", label: "Journal" },
 ];
 

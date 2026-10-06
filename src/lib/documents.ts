@@ -1,7 +1,9 @@
 // Modèles de documents pré-remplis avec les données de l'organisation.
 // Rédaction générique destinée aux TPE/PME : à relire et adapter avant signature.
 
-import type { Workspace } from "./domain";
+import { CONTROLS } from "./catalog/controls";
+import { computeAlerts, formatDate, frameworkScores, scoreOf, type Workspace } from "./domain";
+import { riskLevel } from "./risks";
 
 export type Block =
   | { kind: "p"; text: string }
@@ -278,6 +280,227 @@ export const DOC_TEMPLATES: DocTemplate[] = [
           heading: "Retour d'expérience",
           blocks: [
             p("Dans les deux semaines qui suivent, le référent rédige un retour d'expérience : cause, chronologie, ce qui a bien ou mal fonctionné, et actions décidées pour éviter que l'incident se reproduise."),
+          ],
+        },
+      ];
+    },
+  },
+  {
+    slug: "plan-sauvegarde",
+    title: "Plan de sauvegarde",
+    summary: "Ce qui est sauvegardé, où, à quelle fréquence, et comment on vérifie que la restauration fonctionne.",
+    controlIds: ["A.8.13", "A.5.30"],
+    signer: "direction",
+    render: (ws) => {
+      const c = ctx(ws);
+      return [
+        {
+          heading: "Objet",
+          blocks: [
+            p(`Ce plan garantit que ${c.org} peut retrouver ses données après une panne, une erreur, un vol ou une cyberattaque. Il est tenu à jour par ${c.referent}.`),
+          ],
+        },
+        {
+          heading: "La règle 3-2-1",
+          blocks: [
+            list(
+              "3 copies des données : l'original et deux sauvegardes.",
+              "Sur 2 supports différents (par exemple un service de sauvegarde en ligne et un disque externe).",
+              "Dont 1 copie hors ligne ou non modifiable, à l'abri d'un rançongiciel.",
+            ),
+          ],
+        },
+        {
+          heading: "Ce qui est sauvegardé",
+          blocks: [
+            list(
+              "Messagerie et agendas : [outil, fréquence, durée de conservation]",
+              "Documents et fichiers partagés : [outil, fréquence, durée de conservation]",
+              "Comptabilité, paie et gestion commerciale : [outil, fréquence, durée de conservation]",
+              ...(ws.answers.hasDevelopment
+                ? ["Code source et bases de données de production : [outil, fréquence, durée de conservation]"]
+                : []),
+              "Configuration des équipements (pare-feu, serveurs) : [outil, fréquence]",
+            ),
+          ],
+        },
+        {
+          heading: "Qui fait quoi",
+          blocks: [
+            list(
+              `Supervision des sauvegardes et lecture des rapports : ${c.referent}`,
+              `Mise en œuvre technique : ${c.prestataire}`,
+              "Remplaçant en cas d'absence : [Nom]",
+            ),
+          ],
+        },
+        {
+          heading: "Vérifications",
+          blocks: [
+            list(
+              "Chaque semaine : lecture du rapport de sauvegarde, traitement de toute erreur.",
+              "Chaque trimestre : restauration test d'un dossier et d'une boîte mail, consignée avec la date et le résultat.",
+              "Chaque année : restauration complète d'un poste ou d'un serveur sur un environnement de test.",
+            ),
+            p("Chaque test de restauration est enregistré comme preuve dans l'outil de conformité."),
+          ],
+        },
+      ];
+    },
+  },
+  {
+    slug: "plan-continuite",
+    title: "Plan de continuité d'activité simplifié",
+    summary: "Comment continuer à travailler et redémarrer si l'informatique ou les locaux deviennent indisponibles.",
+    controlIds: ["A.5.30", "A.5.29"],
+    signer: "direction",
+    render: (ws) => {
+      const c = ctx(ws);
+      return [
+        {
+          heading: "Activités essentielles",
+          blocks: [
+            p(`Les activités sans lesquelles ${c.org} ne peut pas fonctionner plus de quelques jours, et le délai d'interruption acceptable pour chacune :`),
+            list(
+              "[Activité 1, ex. prise de commandes] — interruption maximale : [24 h]",
+              "[Activité 2, ex. production ou livraison] — interruption maximale : [48 h]",
+              "[Activité 3, ex. facturation et paie] — interruption maximale : [5 jours]",
+            ),
+          ],
+        },
+        {
+          heading: "Scénarios couverts",
+          blocks: [
+            list(
+              "Cyberattaque bloquant les ordinateurs (rançongiciel).",
+              "Panne d'Internet ou d'un service en ligne indispensable.",
+              ...(c.remote ? [] : ["Locaux inaccessibles : incendie, dégât des eaux, coupure prolongée d'électricité."]),
+              "Absence d'une personne clé (dirigeant, référent informatique).",
+            ),
+          ],
+        },
+        {
+          heading: "Mode dégradé",
+          blocks: [
+            list(
+              "Liste papier à jour des contacts clés : clients, fournisseurs, prestataire informatique, assureur, banque.",
+              "Accès de secours : téléphone portable, partage de connexion 4G/5G, ordinateur de remplacement prêt.",
+              "Procédures manuelles temporaires : [bons de commande papier, facturation différée…].",
+              "Communication : qui prévient les clients, avec quel message.",
+            ),
+          ],
+        },
+        {
+          heading: "Redémarrage",
+          blocks: [
+            steps(
+              "Le dirigeant déclenche le plan et désigne un coordinateur.",
+              "Le prestataire informatique évalue les dégâts et l'ordre de redémarrage.",
+              "Restauration des données à partir de sauvegardes saines (voir le plan de sauvegarde).",
+              "Redémarrage des activités essentielles dans l'ordre de priorité ci-dessus.",
+              "Retour d'expérience et mise à jour de ce plan.",
+            ),
+          ],
+        },
+        {
+          heading: "Test du plan",
+          blocks: [
+            p("Le plan est testé au moins une fois par an par un exercice sur table d'une heure : on déroule un scénario et on vérifie que chacun sait quoi faire. Le compte rendu est enregistré comme preuve."),
+          ],
+        },
+      ];
+    },
+  },
+  {
+    slug: "revue-de-direction",
+    title: "Compte rendu de revue de direction",
+    summary: "La réunion annuelle exigée par l'ISO 27001, pré-remplie avec l'état réel de votre démarche.",
+    controlIds: ["SMSI.9.3", "A.5.4"],
+    signer: "direction",
+    render: (ws) => {
+      const c = ctx(ws);
+      const total = scoreOf(ws, CONTROLS);
+      const fws = frameworkScores(ws);
+      const alerts = computeAlerts(ws);
+      const critical = alerts.filter((a) => a.severity === "critique").length;
+      const yearAgo = new Date();
+      yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+      const incidents = ws.incidents.filter((i) => new Date(i.detectedAt) >= yearAgo);
+      const significant = incidents.filter((i) => i.significant).length;
+      const topRisks = ws.risks.filter((r) => {
+        const l = riskLevel(r.likelihood, r.impact);
+        return l === "critique" || l === "eleve";
+      });
+      const socleRestant = CONTROLS.filter(
+        (x) => x.priority === "socle" && ws.controls[x.id]?.applicable && ws.controls[x.id].status !== "conforme",
+      );
+      return [
+        {
+          heading: "Informations",
+          blocks: [
+            list(
+              `Organisation : ${c.org}`,
+              `Date de la revue : ${formatDate(new Date().toISOString())}`,
+              "Participants : [Noms et fonctions]",
+              `Animée par : ${c.referent}`,
+            ),
+          ],
+        },
+        {
+          heading: "État de la démarche",
+          blocks: [
+            list(
+              `Conformité prouvée globale : ${total.percent} % (${total.conformes} contrôles conformes sur ${total.applicable} applicables).`,
+              ...fws.map(({ framework, score }) => `${framework.shortName} : ${score.percent} %.`),
+              `Situation NIS2 : ${ws.nis2.label.toLowerCase()}.`,
+              alerts.length
+                ? `Alertes en cours : ${alerts.length}, ${critical ? `dont ${critical} critique${critical > 1 ? "s" : ""}` : "aucune critique"}.`
+                : "Aucune alerte en cours.",
+            ),
+          ],
+        },
+        {
+          heading: "Incidents des 12 derniers mois",
+          blocks: [
+            incidents.length
+              ? list(
+                  `${incidents.length} incident${incidents.length > 1 ? "s" : ""} enregistré${incidents.length > 1 ? "s" : ""}, dont ${significant} important${significant > 1 ? "s" : ""}.`,
+                  ...incidents.slice(0, 8).map((i) => `${formatDate(i.detectedAt)} — ${i.title}${i.lessons ? ` (leçon : ${i.lessons})` : ""}`),
+                )
+              : p("Aucun incident enregistré sur la période."),
+          ],
+        },
+        {
+          heading: "Risques principaux",
+          blocks: [
+            topRisks.length
+              ? list(
+                  ...topRisks.map((r) => {
+                    const linked = r.controlIds.filter((id) => ws.controls[id]?.applicable);
+                    const done = linked.filter((id) => ws.controls[id].status === "conforme").length;
+                    return `${r.threat} — mesures en place : ${done}/${linked.length}.`;
+                  }),
+                )
+              : p("Aucun risque élevé ou critique au registre."),
+          ],
+        },
+        {
+          heading: "Points à décider",
+          blocks: [
+            list(
+              socleRestant.length
+                ? `${socleRestant.length} contrôle${socleRestant.length > 1 ? "s" : ""} essentiel${socleRestant.length > 1 ? "s" : ""} restent à finaliser : ${socleRestant.slice(0, 6).map((x) => x.title.toLowerCase()).join(", ")}${socleRestant.length > 6 ? "…" : ""}.`
+                : "Tous les contrôles essentiels sont en place.",
+              "Moyens alloués pour l'année à venir (budget, temps, prestataires) : [à compléter]",
+              "La politique de sécurité reste-t-elle adaptée ? [oui / modifications à apporter]",
+              "Changements d'activité ou de réglementation à prendre en compte : [à compléter]",
+            ),
+          ],
+        },
+        {
+          heading: "Décisions et objectifs pour l'année",
+          blocks: [
+            steps("[Décision ou objectif 1, responsable, échéance]", "[Décision ou objectif 2, responsable, échéance]", "[Décision ou objectif 3, responsable, échéance]"),
           ],
         },
       ];
