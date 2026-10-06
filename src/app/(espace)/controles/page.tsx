@@ -34,7 +34,7 @@ function Chips({ param, options }: { param: string; options: Filter[] }) {
             }}
             className={clsx(
               "h-8 rounded-full border px-3 text-sm",
-              active ? "border-stamp bg-stamp-soft font-semibold text-stamp" : "border-line text-ink-soft hover:border-line-strong",
+              active ? "border-ink bg-ink font-semibold text-surface" : "border-line text-ink-soft hover:border-line-strong",
             )}
           >
             {o.label}
@@ -149,7 +149,7 @@ function ControlesList() {
                     <Link href={`/controles/${encodeURIComponent(c.id)}`} className="font-medium hover:underline">
                       {c.title}
                     </Link>
-                    {c.priority === "socle" && <span className="ml-2 text-xs text-stamp">Essentiel</span>}
+                    {c.priority === "socle" && <span className="ml-2 rounded border border-line-strong px-1.5 py-px text-xs text-ink-soft">Essentiel</span>}
                   </td>
                   <td className="px-4 py-3 align-top">
                     <StatusBadge status={oc.status} />

@@ -51,7 +51,7 @@ function Choice({
       className={clsx(
         "w-full rounded-md border px-4 py-3 text-left transition-colors",
         selected
-          ? "border-stamp bg-stamp-soft"
+          ? "border-ink bg-void"
           : "border-line bg-surface hover:border-line-strong",
       )}
     >
@@ -88,7 +88,7 @@ function YesNo({
             onClick={() => onChange(v)}
             className={clsx(
               "h-9 w-16 rounded-md border text-sm font-semibold",
-              value === v ? "border-stamp bg-stamp text-white dark:text-paper" : "border-line-strong",
+              value === v ? "border-ink bg-ink text-surface" : "border-line-strong",
             )}
           >
             {v ? "Oui" : "Non"}
@@ -276,7 +276,7 @@ export default function Demarrer() {
       </div>
       <div className="mt-3 h-1 rounded-full bg-void" aria-hidden>
         <div
-          className="h-1 rounded-full bg-stamp transition-[width]"
+          className="h-1 rounded-full bg-ink transition-[width]"
           style={{ width: `${(Math.min(step, steps.length) / steps.length) * 100}%` }}
         />
       </div>

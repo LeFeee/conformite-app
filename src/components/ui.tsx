@@ -8,7 +8,7 @@ import type { AlertSeverity } from "@/lib/domain";
 type Variant = "primary" | "secondary" | "quiet" | "danger";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-stamp text-white hover:brightness-110 dark:text-paper",
+  primary: "bg-ink text-surface hover:opacity-85",
   secondary: "bg-surface text-ink border border-line-strong hover:border-ink-soft",
   quiet: "text-ink-soft hover:text-ink hover:bg-void",
   danger: "text-signal hover:bg-signal-soft",
@@ -34,7 +34,7 @@ export function ButtonLink({
 }
 
 export const STATUS_COLOR: Record<ControlStatus, string> = {
-  conforme: "var(--stamp)",
+  conforme: "var(--ok)",
   en_cours: "var(--ochre)",
   a_faire: "var(--idle)",
   non_applicable: "var(--void)",
@@ -61,7 +61,7 @@ export function StatusBadge({ status }: { status: ControlStatus }) {
 
 const SEVERITY: Record<AlertSeverity, { label: string; className: string }> = {
   critique: { label: "Critique", className: "bg-signal-soft text-signal" },
-  attention: { label: "Attention", className: "bg-ochre-soft text-ochre" },
+  attention: { label: "Attention", className: "bg-ochre-soft text-ochre-text" },
   info: { label: "À noter", className: "bg-void text-ink-soft" },
 };
 
@@ -117,4 +117,4 @@ export function Section({
 }
 
 export const inputClass =
-  "w-full rounded-md border border-line-strong bg-surface px-3 h-10 text-sm text-ink placeholder:text-ink-faint focus:border-stamp focus:outline-none";
+  "w-full rounded-md border border-line-strong bg-surface px-3 h-10 text-sm text-ink placeholder:text-ink-faint focus:border-ink focus:outline-none";

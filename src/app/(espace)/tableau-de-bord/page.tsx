@@ -27,7 +27,7 @@ function Bar({ percent, label }: { percent: number; label: string }) {
       aria-valuemax={100}
       aria-label={label}
     >
-      <div className="h-2 rounded-full bg-stamp" style={{ width: `${percent}%` }} />
+      <div className="h-2 rounded-full bg-ok" style={{ width: `${percent}%` }} />
     </div>
   );
 }
@@ -135,15 +135,12 @@ export default function TableauDeBord() {
                 );
                 return (
                   <li key={a.id}>
-                    {a.controlId ? (
-                      <Link href={`/controles/${encodeURIComponent(a.controlId)}`} className="block px-5 py-3 hover:bg-paper">
-                        {inner}
-                      </Link>
-                    ) : (
-                      <Link href="/controles?filtre=socle" className="block px-5 py-3 hover:bg-paper">
-                        {inner}
-                      </Link>
-                    )}
+                    <Link
+                      href={a.href ?? (a.controlId ? `/controles/${encodeURIComponent(a.controlId)}` : "/controles?filtre=socle")}
+                      className="block px-5 py-3 hover:bg-paper"
+                    >
+                      {inner}
+                    </Link>
                   </li>
                 );
               })}

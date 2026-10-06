@@ -17,8 +17,11 @@ import {
 import { CONTROLS_BY_ID } from "./catalog/controls";
 import type { ControlStatus } from "./catalog/types";
 import { STATUS_LABELS } from "./catalog/types";
+import type { Incident } from "./incidents";
+import type { Risk } from "./risks";
 import {
   createWorkspace,
+  normalizeWorkspace,
   uid,
   type Evidence,
   type OrgControl,
@@ -38,6 +41,12 @@ interface Ctx {
   markReviewed: (id: string) => void;
   addEvidence: (e: Omit<Evidence, "id" | "addedAt" | "addedBy">) => void;
   removeEvidence: (id: string) => void;
+  addRisk: (r: Omit<Risk, "id" | "createdAt" | "updatedAt">) => void;
+  updateRisk: (id: string, patch: Partial<Omit<Risk, "id">>) => void;
+  removeRisk: (id: string) => void;
+  addIncident: (i: Omit<Incident, "id" | "createdAt">) => string;
+  updateIncident: (id: string, patch: Partial<Omit<Incident, "id">>) => void;
+  removeIncident: (id: string) => void;
 }
 
 const WorkspaceContext = createContext<Ctx | null>(null);
@@ -45,7 +54,7 @@ const WorkspaceContext = createContext<Ctx | null>(null);
 function load(): Workspace | null {
   try {
     const raw = window.localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Workspace) : null;
+    return raw ? normalizeWorkspace(JSON.parse(raw) as Workspace) : null;
   } catch {
     return null;
   }
@@ -142,6 +151,45 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           const next = { ...ws, evidences: ws.evidences.filter((x) => x.id !== id) };
           return ev ? log(next, `Preuve supprimée : ${ev.title}`, ev.controlId) : next;
         }),
+      addRisk: (r) =>
+        commit((ws) => {
+          const now = new Date().toISOString();
+          const risk: Risk = { ...r, id: uid(), createdAt: now, updatedAt: now };
+          return log({ ...ws, risks: [risk, ...ws.risks] }, `Risque ajouté : ${r.threat}`);
+        }),
+      updateRisk: (id, patch) =>
+        commit((ws) => ({
+          ...ws,
+          risks: ws.risks.map((r) => (r.id === id ? { ...r, ...patch, updatedAt: new Date().toISOString() } : r)),
+        })),
+      removeRisk: (id) =>
+        commit((ws) => {
+          const r = ws.risks.find((x) => x.id === id);
+          const next = { ...ws, risks: ws.risks.filter((x) => x.id !== id) };
+          return r ? log(next, `Risque supprimé : ${r.threat}`) : next;
+        }),
+      addIncident: (i) => {
+        const id = uid();
+        commit((ws) => {
+          const inc: Incident = { ...i, id, createdAt: new Date().toISOString() };
+          return log({ ...ws, incidents: [inc, ...ws.incidents] }, `Incident déclaré : ${i.title}`);
+        });
+        return id;
+      },
+      updateIncident: (id, patch) =>
+        commit((ws) => {
+          const prev = ws.incidents.find((x) => x.id === id);
+          let next: Workspace = {
+            ...ws,
+            incidents: ws.incidents.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+          };
+          if (prev && patch.status && patch.status !== prev.status && patch.status === "clos") {
+            next = log(next, `Incident clos : ${prev.title}`);
+          }
+          return next;
+        }),
+      removeIncident: (id) =>
+        commit((ws) => ({ ...ws, incidents: ws.incidents.filter((x) => x.id !== id) })),
     }),
     [ready, workspace, commit],
   );

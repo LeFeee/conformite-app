@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Button, inputClass, Section, STATUS_COLOR } from "@/components/ui";
 import { CONTROLS_BY_ID } from "@/lib/catalog/controls";
+import { templatesForControl } from "@/lib/documents";
 import { FRAMEWORKS, REQUIREMENTS_BY_ID } from "@/lib/catalog/frameworks";
 import { STATUS_LABELS, TAG_LABELS, THEME_LABELS, type ControlStatus } from "@/lib/catalog/types";
 import {
@@ -235,7 +236,7 @@ function ControleDetail({ id }: { id: string }) {
                           {" · ajoutée le "}
                           {formatDate(ev.addedAt)}
                         </p>
-                        <p className={clsx("text-sm", !valid ? "text-signal" : left !== null && left <= 30 ? "text-ochre" : "text-ink-soft")}>
+                        <p className={clsx("text-sm", !valid ? "text-signal" : left !== null && left <= 30 ? "text-ochre-text" : "text-ink-soft")}>
                           {ev.validUntil
                             ? valid
                               ? `Valable jusqu'au ${formatDate(ev.validUntil)}`
@@ -306,6 +307,21 @@ function ControleDetail({ id }: { id: string }) {
         </div>
 
         <div className="space-y-6">
+          {templatesForControl(id).length > 0 && (
+            <Section title="Modèle disponible">
+              <ul className="divide-y divide-line">
+                {templatesForControl(id).map((t) => (
+                  <li key={t.slug}>
+                    <Link href={`/documents/${t.slug}`} className="block px-5 py-3 hover:bg-paper">
+                      <span className="font-medium">{t.title}</span>
+                      <span className="mt-0.5 block text-sm text-ink-soft">Pré-rempli avec vos informations, prêt à signer.</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+
           <Section title="Preuves attendues">
             <ul className="space-y-1 p-3">
               {control.evidence.map((e) => (

@@ -4,6 +4,8 @@
 import { CONTROLS, CONTROLS_BY_ID } from "./catalog/controls";
 import { FRAMEWORKS } from "./catalog/frameworks";
 import type { Control, ControlStatus, FrameworkId } from "./catalog/types";
+import { formatRemaining, incidentDeadlines, type Incident } from "./incidents";
+import { riskLevel, type Risk } from "./risks";
 import {
   assessNis2,
   computeApplicability,
@@ -67,7 +69,14 @@ export interface Workspace {
   createdAt: string;
   controls: Record<string, OrgControl>;
   evidences: Evidence[];
+  risks: Risk[];
+  incidents: Incident[];
   activity: ActivityEntry[];
+}
+
+/** Complète un espace enregistré par une version antérieure. */
+export function normalizeWorkspace(ws: Workspace): Workspace {
+  return { ...ws, risks: ws.risks ?? [], incidents: ws.incidents ?? [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -98,6 +107,8 @@ export function createWorkspace(answers: ScopingAnswers, now = new Date()): Work
     createdAt: iso,
     controls,
     evidences: [],
+    risks: [],
+    incidents: [],
     activity: [
       {
         id: uid(),
@@ -108,6 +119,8 @@ export function createWorkspace(answers: ScopingAnswers, now = new Date()): Work
     ],
   };
 }
+
+const capitalize = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 export function uid(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -219,6 +232,7 @@ export interface Alert {
   title: string;
   detail: string;
   controlId?: string;
+  href?: string;
 }
 
 export function computeAlerts(ws: Workspace, now = new Date()): Alert[] {
@@ -296,6 +310,47 @@ export function computeAlerts(ws: Workspace, now = new Date()): Alert[] {
       title: `${socleSansResponsable.length} contrôle${socleSansResponsable.length > 1 ? "s" : ""} essentiel${socleSansResponsable.length > 1 ? "s" : ""} sans responsable`,
       detail: "Attribuez un responsable et une échéance pour lancer la démarche.",
     });
+  }
+
+  for (const inc of ws.incidents) {
+    if (inc.status === "clos") continue;
+    for (const d of incidentDeadlines(inc, now)) {
+      if (d.state === "en_retard") {
+        alerts.push({
+          id: `inc-${inc.id}-${d.key}`,
+          severity: "critique",
+          title: `${d.label} en retard : ${inc.title}`,
+          detail: `${capitalize(formatRemaining(d.remainingMs))}.`,
+          href: "/incidents",
+        });
+      } else if (d.state === "a_faire" && d.remainingMs < 12 * 3_600_000) {
+        alerts.push({
+          id: `inc-${inc.id}-${d.key}`,
+          severity: "attention",
+          title: `${d.label} imminente : ${inc.title}`,
+          detail: `${capitalize(formatRemaining(d.remainingMs))}.`,
+          href: "/incidents",
+        });
+      }
+    }
+  }
+
+  for (const r of ws.risks) {
+    const lvl = riskLevel(r.likelihood, r.impact);
+    if (r.treatment !== "reduire" || (lvl !== "critique" && lvl !== "eleve")) continue;
+    const linked = r.controlIds.filter((id) => ws.controls[id]?.applicable);
+    const done = linked.filter((id) => ws.controls[id].status === "conforme").length;
+    if (linked.length && done < linked.length) {
+      alerts.push({
+        id: `risk-${r.id}`,
+        severity: lvl === "critique" ? "attention" : "info",
+        title: `Risque ${lvl === "critique" ? "critique" : "élevé"} pas encore maîtrisé : ${r.threat}`,
+        detail: done
+          ? `${done} mesure${done > 1 ? "s" : ""} en place sur ${linked.length}.`
+          : `Aucune des ${linked.length} mesures prévues n'est encore en place.`,
+        href: "/risques",
+      });
+    }
   }
 
   const order: Record<AlertSeverity, number> = { critique: 0, attention: 1, info: 2 };

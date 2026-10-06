@@ -2,40 +2,53 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #f2f4f3;
+  /* Interface en noir et blanc ; la couleur est réservée aux statuts et graphiques. */
+  --paper: #f7f7f7;
   --surface: #ffffff;
-  --ink: #17201d;
-  --ink-soft: #4a5652;
-  --ink-faint: #7a8682;
-  --line: #d3dad7;
-  --line-strong: #b4bfbb;
-  --stamp: #1f5c4a; /* conforme / action principale */
-  --stamp-soft: #e1ece8;
-  --ochre: #b7791f; /* en cours / attention */
-  --ochre-soft: #f6ebd6;
-  --signal: #b8322a; /* critique */
-  --signal-soft: #f7e1df;
-  --idle: #c3ccc9; /* à faire */
-  --void: #e6eae8; /* non applicable */
+  --ink: #000000;
+  --ink-soft: #525252;
+  --ink-faint: #8a8a8a;
+  --line: #e5e5e5;
+  --line-strong: #c4c4c4;
+  /* Couleurs de statut (validées daltonisme : vert/ambre ΔE 17, ambre/rouge ΔE 24) */
+  --ok: #15803d; /* conforme */
+  --ok-soft: #e7f4ec;
+  --ochre: #f59e0b; /* en cours / attention */
+  --ochre-soft: #fef3e2;
+  --ochre-text: #a16207; /* ambre lisible en texte sur fond clair */
+  --signal: #dc2626; /* critique */
+  --signal-soft: #fdecec;
+  --idle: #d4d4d4; /* à faire */
+  --void: #efefef; /* non applicable / fonds neutres */
+  /* matrice des risques : vert, jaune, orange, rouge (nombres en noir par-dessus) */
+  --heat-faible: #cdeccf;
+  --heat-modere: #fbe9a0;
+  --heat-eleve: #f8c58a;
+  --heat-critique: #f2a29b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #131917;
-    --surface: #1b2320;
-    --ink: #e7ecea;
-    --ink-soft: #b3bebb;
-    --ink-faint: #85918d;
-    --line: #2d3834;
-    --line-strong: #44524d;
-    --stamp: #5fae92;
-    --stamp-soft: #1d342c;
-    --ochre: #dba44f;
-    --ochre-soft: #3a2f1c;
-    --signal: #e8675d;
-    --signal-soft: #3d2120;
-    --idle: #4a5652;
-    --void: #252e2b;
+    --paper: #000000;
+    --surface: #121212;
+    --ink: #ffffff;
+    --ink-soft: #b0b0b0;
+    --ink-faint: #7d7d7d;
+    --line: #2a2a2a;
+    --line-strong: #474747;
+    --ok: #34d399;
+    --ok-soft: #10291f;
+    --ochre: #fbbf24;
+    --ochre-soft: #2e2410;
+    --ochre-text: #fbbf24;
+    --signal: #f87171;
+    --signal-soft: #331616;
+    --idle: #525252;
+    --void: #1f1f1f;
+    --heat-faible: #173d24;
+    --heat-modere: #4a3f12;
+    --heat-eleve: #5a3412;
+    --heat-critique: #5e1d1a;
   }
 }
 
@@ -47,14 +60,16 @@
   --color-ink-faint: var(--ink-faint);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
-  --color-stamp: var(--stamp);
-  --color-stamp-soft: var(--stamp-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
   --color-ochre: var(--ochre);
   --color-ochre-soft: var(--ochre-soft);
+  --color-ochre-text: var(--ochre-text);
   --color-signal: var(--signal);
   --color-signal-soft: var(--signal-soft);
   --color-idle: var(--idle);
   --color-void: var(--void);
+  --color-heat-modere: var(--heat-modere);
   --font-sans: "Public Sans Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -70,7 +85,7 @@ html {
 }
 
 :focus-visible {
-  outline: 2px solid var(--stamp);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
@@ -80,5 +95,13 @@ html {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff;
+    color: #000000;
   }
 }

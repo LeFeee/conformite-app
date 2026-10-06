@@ -11,6 +11,9 @@ import { useWorkspace } from "@/lib/store";
 const NAV = [
   { href: "/tableau-de-bord", label: "Tableau de bord" },
   { href: "/controles", label: "Contrôles" },
+  { href: "/risques", label: "Risques" },
+  { href: "/incidents", label: "Incidents" },
+  { href: "/documents", label: "Documents" },
   { href: "/applicabilite", label: "Déclaration d'applicabilité" },
   { href: "/nis2", label: "NIS2" },
   { href: "/journal", label: "Journal" },
@@ -35,8 +38,8 @@ export default function EspaceLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[15rem_1fr]">
-      <aside className="border-b border-line bg-surface lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
+    <div className="min-h-screen lg:grid lg:grid-cols-[15rem_1fr] print:block">
+      <aside className="print:hidden border-b border-line bg-surface lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
         <div className="flex items-center justify-between gap-4 px-5 py-4 lg:block">
           <div>
             <Link href="/" className="font-bold">
@@ -55,7 +58,7 @@ export default function EspaceLayout({ children }: { children: ReactNode }) {
                 aria-current={active ? "page" : undefined}
                 className={clsx(
                   "flex items-center justify-between whitespace-nowrap rounded-md px-3 py-2 text-sm",
-                  active ? "bg-stamp-soft font-semibold text-stamp" : "text-ink-soft hover:bg-void hover:text-ink",
+                  active ? "bg-ink font-semibold text-surface" : "text-ink-soft hover:bg-void hover:text-ink",
                 )}
               >
                 {item.label}
@@ -69,7 +72,7 @@ export default function EspaceLayout({ children }: { children: ReactNode }) {
           })}
         </nav>
       </aside>
-      <main className="min-w-0 px-5 py-8 sm:px-10 lg:py-10">
+      <main className="min-w-0 px-5 py-8 sm:px-10 lg:py-10 print:p-0">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
     </div>

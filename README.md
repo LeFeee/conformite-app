@@ -16,10 +16,17 @@ Nom de produit provisoire : modifiable dans `src/lib/config.ts`.
 | Déclaration d'applicabilité (SoA) + export CSV | Fait |
 | Vue NIS2 par obligation | Fait |
 | Journal d'activité | Fait |
+| Registre des risques : matrice probabilité × impact, 12 risques types pour TPE/PME, lien vers les contrôles qui les réduisent | Fait |
+| Incidents : registre, échéances NIS2 24 h / 72 h / 1 mois avec décompte, retour d'expérience | Fait |
+| Modèles prêts à signer (politique de sécurité, charte informatique, procédure incident), pré-remplis, imprimables en PDF, enregistrés comme preuve une fois signés | Fait |
 | Schéma Supabase (tables, RLS, RPC de création d'organisation, bucket de preuves, vue d'alertes) | Écrit et testé sur PostgreSQL 16, **pas encore appliqué** |
 | Branchement Supabase (auth, lecture/écriture, dépôt réel des fichiers) | À faire dès que le projet Supabase Pro existe |
 
 Aujourd'hui l'appli fonctionne en **mode démo** : tout est enregistré dans le navigateur (localStorage). Les intitulés ISO sont reformulés en français ; le texte de la norme n'est pas reproduit.
+
+## Direction artistique
+
+Interface en noir et blanc (Public Sans, fonds blanc et gris très clair, actions en noir). La couleur est réservée aux données : vert (conforme), ambre (en cours), gris (à faire), rouge (critique), et l'échelle vert → rouge de la matrice des risques. Palette de statuts vérifiée pour le daltonisme. Les jetons sont dans `src/app/globals.css`.
 
 ## Démarrer en local
 
@@ -61,9 +68,7 @@ Formalize est une plateforme GRC généraliste (8 000+ clients, 80 pays, ISO 270
 ## Prochaines étapes
 
 1. Supabase : auth par lien magique, multi-organisations, dépôt de fichiers, invitations (dont rôle auditeur en lecture seule).
-2. Registre des risques (table déjà prévue) et lien risques ↔ contrôles.
-3. Module incidents NIS2 avec compte à rebours 24 h / 72 h / 1 mois (table déjà prévue).
-4. Modèles de documents prêts à signer (politique de sécurité, charte informatique, procédure incident).
-5. Rappels par email (preuves qui expirent, échéances) via une tâche planifiée sur la vue `org_alerts`.
-6. Export PDF du dossier d'audit.
-7. Référentiel ReCyF de l'ANSSI en correspondance avec les contrôles existants.
+2. Modèles supplémentaires (plan de sauvegarde, plan de continuité, revue de direction, registre des fournisseurs).
+3. Rappels par email (preuves qui expirent, échéances) via une tâche planifiée sur la vue `org_alerts`.
+4. Export PDF du dossier d'audit.
+5. Référentiel ReCyF de l'ANSSI en correspondance avec les contrôles existants.
