@@ -19,14 +19,15 @@ Nom de produit provisoire : modifiable dans `src/lib/config.ts`.
 | Registre des risques : matrice probabilité × impact, 12 risques types pour TPE/PME, lien vers les contrôles qui les réduisent | Fait |
 | Incidents : registre, échéances NIS2 24 h / 72 h / 1 mois avec décompte, retour d'expérience | Fait |
 | 6 modèles prêts à signer (politique de sécurité, charte informatique, procédure incident, plan de sauvegarde, plan de continuité, revue de direction alimentée par les données réelles), imprimables en PDF, enregistrés comme preuve une fois signés | Fait |
-| Dossier d'audit complet (synthèse, SoA, gouvernance, preuves, risques, incidents, journal), exportable en PDF | Fait |
+| Dossier d'audit complet (synthèse, SoA, gouvernance, preuves, risques, incidents, fournisseurs, sensibilisation, journal), exportable en PDF | Fait |
 | Préparation à la certification : audit blanc (écarts majeurs, mineurs, observations avec actions à mener), documents exigés par la norme, parcours jusqu'au certificat, verdict étape 1 / étape 2, rapport imprimable | Fait |
 | Registre des fournisseurs : criticité, données confiées, clauses et accord RGPD, questionnaire sécurité de 12 questions à copier et envoyer, score des réponses et points bloquants | Fait |
-| Tests automatiques des calculs métier (`npm test`, 32 tests) | Fait |
-| Schéma Supabase (tables, RLS, RPC de création d'organisation, bucket de preuves, vue d'alertes) | Écrit et testé sur PostgreSQL 16, **pas encore appliqué** |
-| Branchement Supabase (auth, lecture/écriture, dépôt réel des fichiers) | À faire dès que le projet Supabase Pro existe |
+| Sensibilisation des équipes : quiz de 10 situations (réussite à 8/10), sessions collectives et formations externes, registre, attestation imprimable valable un an, preuve ajoutée automatiquement (A.6.3, §7.3, NIS2 art. 20 pour les dirigeants) | Fait |
+| Tests automatiques (`npm test`, 44 tests : calculs métier + conversion et synchronisation Supabase) | Fait |
+| Schéma Supabase (14 tables, RLS, RPC de création d'organisation, bucket de preuves privé, vue d'alertes) | Écrit et testé sur PostgreSQL 16 (isolation entre organisations vérifiée), **pas encore appliqué** |
+| Branchement Supabase : connexion par lien magique, proxy de session, lecture de l'espace, enregistrement différentiel de chaque modification, envoi des fichiers de preuve dans le stockage privé, import de l'espace de démo | Code prêt, **s'active dès que les variables d'environnement sont renseignées** |
 
-Aujourd'hui l'appli fonctionne en **mode démo** : tout est enregistré dans le navigateur (localStorage). Les intitulés ISO sont reformulés en français ; le texte de la norme n'est pas reproduit.
+Sans variables Supabase, l'appli fonctionne en **mode démo** : tout est enregistré dans le navigateur (localStorage). Les intitulés ISO sont reformulés en français ; le texte de la norme n'est pas reproduit.
 
 ## Direction artistique
 
@@ -49,9 +50,14 @@ npm run seed:generate   # régénère supabase/seed.sql depuis le catalogue Type
 
 ## Brancher Supabase (quand le projet Pro est créé)
 
-1. Appliquer `supabase/migrations/20261006000000_init.sql`, puis `supabase/seed.sql`.
-2. Copier `.env.example` en `.env.local` et renseigner l'URL et la clé publique.
-3. Remplacer le stockage local de `src/lib/store.tsx` par les appels Supabase (même interface).
+1. **Créer le projet** dans la région Europe (Paris `eu-west-3` ou Francfort `eu-central-1`) : les données de conformité de vos clients restent dans l'UE.
+2. **Appliquer le schéma**, dans l'ordre, depuis l'éditeur SQL ou avec `supabase db push` :
+   `20261006000000_init.sql`, `20261007000000_suppliers.sql`, `20261008000000_trainings.sql`, `20261009000000_sync.sql`, puis `supabase/seed.sql` (catalogue).
+3. **Authentification** (Authentication → URL Configuration) : *Site URL* = l'adresse de l'appli, et ajouter `https://<votre-domaine>/auth/callback` (et `http://localhost:3000/auth/callback` pour le développement) dans les *Redirect URLs*. Fournisseur Email activé ; configurer un SMTP (Resend, Brevo…) pour ne pas dépendre de la limite d'envoi par défaut.
+4. **Variables** : copier `.env.example` en `.env.local` et renseigner `NEXT_PUBLIC_SUPABASE_URL` et `NEXT_PUBLIC_SUPABASE_ANON_KEY` (clé publique ; jamais la clé `service_role`).
+5. **Premier lancement** : se connecter avec son email ; si un espace de démo existe dans le navigateur, l'écran de cadrage propose de le reprendre tel quel.
+
+Fonctionnement : le store (`src/lib/store.tsx`) garde la même interface dans les deux modes. En mode Supabase, chaque changement d'état est comparé au précédent (`src/lib/supabase/sync.ts`) et seules les lignes modifiées sont envoyées ; en cas d'échec, l'espace est rechargé depuis la base. Le proxy (`src/proxy.ts`) rafraîchit la session et redirige vers `/connexion` toute page de l'espace sans session valide.
 
 Le catalogue TypeScript reste la source unique : toute modification passe par `src/lib/catalog/` puis `npm run seed:generate`.
 
@@ -79,7 +85,7 @@ Formalize est une plateforme GRC généraliste (8 000+ clients, 80 pays, ISO 270
 
 ## Prochaines étapes
 
-1. Supabase : auth par lien magique, multi-organisations, dépôt de fichiers, invitations (dont rôle auditeur en lecture seule).
-2. Lien de réponse au questionnaire pour les fournisseurs (ils répondent directement, sans compte), une fois Supabase branché.
+1. Supabase : invitations de membres (dont rôle auditeur en lecture seule), choix entre plusieurs organisations, synchronisation en temps réel entre plusieurs personnes.
+2. Liens publics sans compte : questionnaire à remplir par les fournisseurs, quiz de sensibilisation à envoyer à chaque salarié.
 3. Rappels par email (preuves qui expirent, échéances) via une tâche planifiée sur la vue `org_alerts`.
 4. Référentiel ReCyF de l'ANSSI en correspondance avec les contrôles existants.

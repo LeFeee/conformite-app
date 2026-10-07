@@ -5,7 +5,7 @@ import { Button, PageHeader } from "@/components/ui";
 import { useWorkspace } from "@/lib/store";
 
 export default function Journal() {
-  const { workspace: ws, reset } = useWorkspace();
+  const { workspace: ws, reset, mode } = useWorkspace();
   if (!ws) return null;
 
   return (
@@ -14,14 +14,16 @@ export default function Journal() {
         title="Journal"
         description="Toutes les actions réalisées dans l'espace. C'est votre piste d'audit."
         actions={
-          <Button
-            variant="danger"
-            onClick={() => {
-              if (confirm("Supprimer l'espace de démonstration et recommencer le cadrage ?")) reset();
-            }}
-          >
-            Recommencer le cadrage
-          </Button>
+          mode === "demo" && (
+            <Button
+              variant="danger"
+              onClick={() => {
+                if (confirm("Supprimer l'espace de démonstration et recommencer le cadrage ?")) reset();
+              }}
+            >
+              Recommencer le cadrage
+            </Button>
+          )
         }
       />
       <ol className="divide-y divide-line rounded-lg border border-line bg-surface">

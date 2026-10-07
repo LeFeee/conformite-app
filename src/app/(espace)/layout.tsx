@@ -24,13 +24,14 @@ const NAV = [
 ];
 
 export default function EspaceLayout({ children }: { children: ReactNode }) {
-  const { ready, workspace } = useWorkspace();
+  const { ready, workspace, needsLogin, mode, user, sync, signOut } = useWorkspace();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (ready && !workspace) router.replace("/demarrer");
-  }, [ready, workspace, router]);
+    if (needsLogin) router.replace(`/connexion?suite=${encodeURIComponent(pathname)}`);
+    else if (ready && !workspace) router.replace("/demarrer");
+  }, [ready, workspace, needsLogin, router, pathname]);
 
   const critical = useMemo(
     () => (workspace ? computeAlerts(workspace).filter((a) => a.severity === "critique").length : 0),
@@ -75,6 +76,17 @@ export default function EspaceLayout({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+        {mode === "supabase" && user && (
+          <div className="hidden border-t border-line px-5 py-4 text-xs text-ink-soft lg:absolute lg:inset-x-0 lg:bottom-0 lg:block">
+            <p className="truncate" title={user.email}>{user.email}</p>
+            <p className={clsx("mt-1", sync.state === "error" && "text-signal")} role="status">
+              {sync.state === "saving" ? "Enregistrement…" : sync.state === "error" ? `Échec de l'enregistrement : ${sync.message}` : "Enregistré"}
+            </p>
+            <button type="button" className="mt-2 underline underline-offset-2 hover:text-ink" onClick={() => signOut().then(() => router.replace("/connexion"))}>
+              Se déconnecter
+            </button>
+          </div>
+        )}
       </aside>
       <main className="min-w-0 px-5 py-8 sm:px-10 lg:py-10 print:p-0">
         <div className="mx-auto max-w-6xl">{children}</div>

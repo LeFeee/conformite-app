@@ -20,6 +20,28 @@ import {
   type EvidenceKind,
 } from "@/lib/domain";
 import { useWorkspace } from "@/lib/store";
+import { evidenceDownloadUrl } from "@/lib/supabase/repository";
+
+/** Mode Supabase : ouvre le fichier via un lien signé temporaire. */
+function DownloadLink({ evidenceId, name }: { evidenceId: string; name: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "missing">("idle");
+  return (
+    <button
+      type="button"
+      className="underline decoration-line-strong underline-offset-2 hover:decoration-ink"
+      onClick={async () => {
+        setState("loading");
+        const url = await evidenceDownloadUrl(evidenceId).catch(() => null);
+        setState(url ? "idle" : "missing");
+        if (url) window.open(url, "_blank", "noopener");
+      }}
+    >
+      {name}
+      {state === "loading" && " (ouverture…)"}
+      {state === "missing" && " (fichier non disponible)"}
+    </button>
+  );
+}
 
 const STATUSES: ControlStatus[] = ["a_faire", "en_cours", "conforme", "non_applicable"];
 
@@ -32,11 +54,11 @@ export default function ControlePage() {
 
 function ControleDetail({ id }: { id: string }) {
   const control = CONTROLS_BY_ID.get(id);
-  const { workspace: ws, updateControl, addEvidence, removeEvidence, markReviewed } = useWorkspace();
+  const { workspace: ws, updateControl, addEvidence, removeEvidence, markReviewed, mode } = useWorkspace();
 
   const [evTitle, setEvTitle] = useState("");
   const [evKind, setEvKind] = useState<EvidenceKind>("document");
-  const [evFile, setEvFile] = useState<string | null>(null);
+  const [evFile, setEvFile] = useState<File | null>(null);
   const [evUrl, setEvUrl] = useState("");
   const [evUntil, setEvUntil] = useState(() => (control ? addDays(today(), control.reviewDays) : ""));
   const [naReason, setNaReason] = useState("");
@@ -78,10 +100,10 @@ function ControleDetail({ id }: { id: string }) {
       controlId: id,
       title: evTitle.trim(),
       kind: evKind,
-      fileName: evFile,
+      fileName: evFile?.name ?? null,
       url: evUrl.trim() || null,
       validUntil: evUntil || null,
-    });
+    }, evFile);
     setEvTitle("");
     setEvFile(null);
     setEvUrl("");
@@ -224,7 +246,7 @@ function ControleDetail({ id }: { id: string }) {
                         <p className="font-medium">{ev.title}</p>
                         <p className="text-sm text-ink-soft">
                           {EVIDENCE_KIND_LABELS[ev.kind]}
-                          {ev.fileName && ` · ${ev.fileName}`}
+                          {ev.fileName && (mode === "supabase" ? <> · <DownloadLink evidenceId={ev.id} name={ev.fileName} /></> : ` · ${ev.fileName}`)}
                           {ev.url && (
                             <>
                               {" · "}
@@ -282,7 +304,7 @@ function ControleDetail({ id }: { id: string }) {
                   <input
                     type="file"
                     className="block w-full text-sm text-ink-soft file:mr-3 file:rounded-md file:border file:border-line-strong file:bg-surface file:px-3 file:py-1.5 file:text-ink"
-                    onChange={(e) => setEvFile(e.target.files?.[0]?.name ?? null)}
+                    onChange={(e) => setEvFile(e.target.files?.[0] ?? null)}
                   />
                 </label>
                 <label className="block text-sm">

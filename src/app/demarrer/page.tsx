@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, inputClass } from "@/components/ui";
 import { CONTROLS } from "@/lib/catalog/controls";
 import { APP_NAME } from "@/lib/config";
@@ -101,8 +101,26 @@ function YesNo({
 
 export default function Demarrer() {
   const router = useRouter();
-  const { create } = useWorkspace();
+  const { create, importDemo, localDemo, needsLogin, mode } = useWorkspace();
   const [a, setA] = useState<ScopingAnswers>(DEFAULT_ANSWERS);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (needsLogin) router.replace("/connexion?suite=/demarrer");
+  }, [needsLogin, router]);
+
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      router.push("/tableau-de-bord");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
   const [step, setStep] = useState(0);
   const set = (patch: Partial<ScopingAnswers>) => setA((x) => ({ ...x, ...patch }));
 
@@ -281,6 +299,20 @@ export default function Demarrer() {
         />
       </div>
 
+      {mode === "supabase" && localDemo && step === 0 && (
+        <div className="mt-8 rounded-lg border border-line bg-surface px-5 py-4">
+          <p className="font-semibold">Un espace de démonstration existe dans ce navigateur</p>
+          <p className="mt-1 text-sm text-ink-soft">
+            « {localDemo.answers.organizationName} » : vous pouvez le reprendre tel quel, avec ses contrôles, preuves,
+            risques, fournisseurs et sensibilisations. Les fichiers joints en démo ne sont pas transférés.
+          </p>
+          <Button className="mt-3" disabled={busy} onClick={() => run(importDemo)}>
+            {busy ? "Import en cours…" : "Reprendre cet espace"}
+          </Button>
+        </div>
+      )}
+      {error && <p className="mt-6 rounded-md bg-signal-soft px-4 py-3 text-sm text-signal">Une erreur est survenue : {error}</p>}
+
       {!isResult ? (
         <section className="mt-10">
           <h1 className="text-[1.75rem] font-bold">{current.title}</h1>
@@ -336,13 +368,8 @@ export default function Demarrer() {
             <Button variant="quiet" onClick={() => setStep((s) => s - 1)}>
               Modifier mes réponses
             </Button>
-            <Button
-              onClick={() => {
-                create(a);
-                router.push("/tableau-de-bord");
-              }}
-            >
-              Créer mon espace
+            <Button disabled={busy} onClick={() => run(() => create(a))}>
+              {busy ? "Création…" : "Créer mon espace"}
             </Button>
           </div>
         </section>

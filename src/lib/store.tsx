@@ -2,8 +2,9 @@
 
 // Stockage de l'espace de travail.
 // Mode démo : tout est gardé dans le navigateur (localStorage).
-// Quand Supabase sera branché, ce module gardera la même interface
-// et déléguera les lectures/écritures à la base.
+// Mode Supabase (variables d'environnement présentes) : même interface ; chaque
+// changement d'état est comparé au précédent et seules les lignes modifiées
+// sont envoyées à la base (voir lib/supabase/sync.ts).
 
 import {
   createContext,
@@ -11,6 +12,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -30,18 +32,32 @@ import {
   type Workspace,
 } from "./domain";
 import type { ScopingAnswers } from "./scoping";
+import { SUPABASE_ENABLED } from "./config";
+import * as remote from "./supabase/repository";
+import { withUuids } from "./supabase/sync";
 
 const KEY = "conformite:workspace:v1";
-const ACTOR = "Vous";
+export type SyncState = { state: "idle" | "saving" } | { state: "error"; message: string };
 
 interface Ctx {
   ready: boolean;
   workspace: Workspace | null;
-  create: (answers: ScopingAnswers) => void;
+  /** "demo" : stockage local ; "supabase" : base partagée */
+  mode: "demo" | "supabase";
+  /** mode Supabase : personne n'est connecté */
+  needsLogin: boolean;
+  user: remote.Session | null;
+  sync: SyncState;
+  /** espace de démo trouvé dans ce navigateur, importable dans Supabase */
+  localDemo: Workspace | null;
+  create: (answers: ScopingAnswers) => Promise<void>;
+  importDemo: () => Promise<void>;
+  signOut: () => Promise<void>;
   reset: () => void;
   updateControl: (id: string, patch: Partial<Omit<OrgControl, "controlId">>) => void;
   markReviewed: (id: string) => void;
-  addEvidence: (e: Omit<Evidence, "id" | "addedAt" | "addedBy">) => void;
+  /** `file` : en mode Supabase, le fichier est envoyé dans le stockage privé après l'enregistrement de la preuve. */
+  addEvidence: (e: Omit<Evidence, "id" | "addedAt" | "addedBy">, file?: File | null) => void;
   removeEvidence: (id: string) => void;
   addRisk: (r: Omit<Risk, "id" | "createdAt" | "updatedAt">) => void;
   updateRisk: (id: string, patch: Partial<Omit<Risk, "id">>) => void;
@@ -79,23 +95,86 @@ function save(ws: Workspace | null) {
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<remote.Session | null>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [sync, setSync] = useState<SyncState>({ state: "idle" });
+  const [localDemo, setLocalDemo] = useState<Workspace | null>(null);
+  // Dernier état connu comme enregistré : la synchronisation envoie la différence.
+  const synced = useRef<Workspace | null>(null);
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const pendingUploads = useRef(new Map<string, File>());
+  const ACTOR = user ? remote.displayName(user) : "Vous";
 
   useEffect(() => {
+    let cancelled = false;
     // Lecture différée après le montage pour éviter tout écart d'hydratation.
-    const id = requestAnimationFrame(() => {
-      setWorkspace(load());
+    const id = requestAnimationFrame(async () => {
+      let ws: Workspace | null = null;
+      if (!SUPABASE_ENABLED) {
+        ws = load();
+      } else {
+        try {
+          const session = await remote.currentSession();
+          if (session) {
+            const org = await remote.currentOrgId();
+            if (org) ws = await remote.loadWorkspace(org);
+            if (!cancelled) {
+              setUser(session);
+              setOrgId(org);
+              setLocalDemo(org ? null : load());
+            }
+          }
+        } catch (e) {
+          if (!cancelled) setSync({ state: "error", message: e instanceof Error ? e.message : String(e) });
+        }
+      }
+      if (cancelled) return;
+      synced.current = ws;
+      setWorkspace(ws);
       setReady(true);
     });
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(id);
+    };
   }, []);
 
+  // Enregistrement après chaque changement, dans l'ordre, hors du rendu.
+  useEffect(() => {
+    const prev = synced.current;
+    if (!ready || !workspace || prev === workspace) return;
+    synced.current = workspace;
+    if (!SUPABASE_ENABLED) {
+      save(workspace);
+      return;
+    }
+    if (!orgId || !user) return;
+    queue.current = queue.current
+      .then(() => {
+        setSync({ state: "saving" });
+        return remote.syncWorkspace(prev, workspace, orgId, user.userId);
+      })
+      .then(async () => {
+        for (const [evId, file] of pendingUploads.current) {
+          if (!workspace.evidences.some((e) => e.id === evId)) continue;
+          pendingUploads.current.delete(evId);
+          await remote.uploadEvidenceFile(orgId, evId, file);
+        }
+      })
+      .then(() => setSync({ state: "idle" }))
+      .catch(async (e) => {
+        setSync({ state: "error", message: e instanceof Error ? e.message : String(e) });
+        // On repart de l'état réel de la base pour ne pas diverger.
+        try {
+          const fresh = await remote.loadWorkspace(orgId);
+          synced.current = fresh;
+          setWorkspace(fresh);
+        } catch {}
+      });
+  }, [workspace, ready, orgId, user]);
+
   const commit = useCallback((fn: (ws: Workspace) => Workspace) => {
-    setWorkspace((prev) => {
-      if (!prev) return prev;
-      const next = fn(prev);
-      save(next);
-      return next;
-    });
+    setWorkspace((prev) => (prev ? fn(prev) : prev));
   }, []);
 
   const log = (ws: Workspace, message: string, controlId?: string): Workspace => ({
@@ -106,17 +185,54 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     ].slice(0, 500),
   });
 
+  const openOrg = async (org: string) => {
+    const ws = await remote.loadWorkspace(org);
+    synced.current = ws;
+    setOrgId(org);
+    setWorkspace(ws);
+  };
+
   const value = useMemo<Ctx>(
     () => ({
       ready,
       workspace,
-      create: (answers) => {
-        const ws = createWorkspace(answers);
-        save(ws);
-        setWorkspace(ws);
+      mode: SUPABASE_ENABLED ? "supabase" : "demo",
+      needsLogin: SUPABASE_ENABLED && ready && !user,
+      user,
+      sync,
+      localDemo,
+      create: async (answers) => {
+        if (!SUPABASE_ENABLED) {
+          const ws = createWorkspace(answers);
+          save(ws);
+          synced.current = ws;
+          setWorkspace(ws);
+          return;
+        }
+        await openOrg(await remote.createOrganization(answers));
+      },
+      importDemo: async () => {
+        if (!SUPABASE_ENABLED || !localDemo || !user) return;
+        const demo = withUuids(localDemo);
+        const org = await remote.createOrganization(demo.answers);
+        // L'organisation vient d'être créée : on envoie tout le contenu de la démo.
+        const created = await remote.loadWorkspace(org);
+        const merged: Workspace = { ...demo, createdAt: created.createdAt, activity: [...demo.activity, ...created.activity] };
+        await remote.syncWorkspace(created, merged, org, user.userId);
+        setLocalDemo(null);
+        await openOrg(org);
+      },
+      signOut: async () => {
+        if (SUPABASE_ENABLED) await remote.signOut();
+        synced.current = null;
+        setUser(null);
+        setOrgId(null);
+        setWorkspace(null);
       },
       reset: () => {
+        if (SUPABASE_ENABLED) return; // en mode partagé, on ne supprime pas une organisation depuis l'interface
         save(null);
+        synced.current = null;
         setWorkspace(null);
       },
       updateControl: (id, patch) =>
@@ -147,11 +263,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           };
           return log(next, `${CONTROLS_BY_ID.get(id)?.title ?? id} : revue effectuée`, id);
         }),
-      addEvidence: (e) =>
+      addEvidence: (e, file) => {
+        const evId = uid();
+        if (SUPABASE_ENABLED && file) pendingUploads.current.set(evId, file);
         commit((ws) => {
-          const ev: Evidence = { ...e, id: uid(), addedAt: new Date().toISOString(), addedBy: ACTOR };
+          const ev: Evidence = { ...e, id: evId, addedAt: new Date().toISOString(), addedBy: ACTOR };
           return log({ ...ws, evidences: [ev, ...ws.evidences] }, `Preuve ajoutée : ${e.title}`, e.controlId);
-        }),
+        });
+      },
       removeEvidence: (id) =>
         commit((ws) => {
           const ev = ws.evidences.find((x) => x.id === id);
@@ -258,7 +377,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           return prev ? log(next, `Fournisseur supprimé : ${prev.name}`) : next;
         }),
     }),
-    [ready, workspace, commit],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [ready, workspace, commit, user, sync, localDemo],
   );
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

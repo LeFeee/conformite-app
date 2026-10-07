@@ -25,16 +25,22 @@ const POINTS: [string, string][] = [
 ];
 
 export default function Home() {
-  const { workspace, ready } = useWorkspace();
+  const { workspace, ready, mode } = useWorkspace();
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-10 sm:py-16">
       <div className="flex items-center justify-between">
         <span className="font-bold">{APP_NAME}</span>
-        {ready && workspace && (
+        {ready && workspace ? (
           <ButtonLink href="/tableau-de-bord" variant="secondary">
             Ouvrir mon espace
           </ButtonLink>
+        ) : (
+          mode === "supabase" && (
+            <ButtonLink href="/connexion" variant="secondary">
+              Se connecter
+            </ButtonLink>
+          )
         )}
       </div>
 
@@ -51,9 +57,11 @@ export default function Home() {
             {workspace ? "Reprendre ma démarche" : "Commencer le cadrage"}
           </ButtonLink>
         </div>
-        <p className="mt-3 text-sm text-ink-faint">
-          Version de démonstration : vos données restent dans ce navigateur.
-        </p>
+        {mode === "demo" && (
+          <p className="mt-3 text-sm text-ink-faint">
+            Version de démonstration : vos données restent dans ce navigateur.
+          </p>
+        )}
       </section>
 
       <dl className="mt-20 grid gap-x-12 gap-y-10 border-t border-line pt-10 sm:grid-cols-2">
