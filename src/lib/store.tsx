@@ -20,6 +20,7 @@ import { STATUS_LABELS } from "./catalog/types";
 import type { Incident } from "./incidents";
 import type { Risk } from "./risks";
 import type { Supplier } from "./suppliers";
+import type { TrainingRecord } from "./training";
 import {
   createWorkspace,
   normalizeWorkspace,
@@ -51,6 +52,8 @@ interface Ctx {
   addSupplier: (s: Omit<Supplier, "id" | "createdAt">) => void;
   updateSupplier: (id: string, patch: Partial<Omit<Supplier, "id">>) => void;
   removeSupplier: (id: string) => void;
+  addTraining: (t: Omit<TrainingRecord, "id">) => void;
+  removeTraining: (id: string) => void;
 }
 
 const WorkspaceContext = createContext<Ctx | null>(null);
@@ -208,6 +211,45 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           if (prev && patch.questionnaireSentAt && !prev.questionnaireSentAt) next = log(next, `Questionnaire envoyé à ${prev.name}`);
           if (prev && patch.answeredAt && !prev.answeredAt) next = log(next, `Réponses au questionnaire reçues de ${prev.name}`);
           return next;
+        }),
+      addTraining: (tr) =>
+        commit((ws) => {
+          const record: TrainingRecord = { ...tr, id: uid() };
+          // La formation devient une preuve sur les contrôles concernés.
+          const targets = ["A.6.3", "SMSI.7.3", ...(tr.audience === "dirigeant" ? ["NIS2.20"] : [])].filter(
+            (id) => ws.controls[id]?.applicable,
+          );
+          const now = new Date().toISOString();
+          const evidences = [
+            ...targets.map((controlId) => ({
+              id: uid(),
+              controlId,
+              title: `Attestation de sensibilisation — ${tr.person}`,
+              kind: "document" as const,
+              fileName: null,
+              url: null,
+              validUntil: tr.validUntil,
+              addedAt: now,
+              addedBy: ACTOR,
+            })),
+            ...ws.evidences,
+          ];
+          return log(
+            { ...ws, trainings: [record, ...ws.trainings], evidences },
+            `Sensibilisation enregistrée : ${tr.person}${tr.score !== null ? ` (${tr.score}/10)` : ""}`,
+          );
+        }),
+      removeTraining: (id) =>
+        commit((ws) => {
+          const tr = ws.trainings.find((x) => x.id === id);
+          if (!tr) return ws;
+          // Retire aussi les preuves créées avec cette formation.
+          const title = `Attestation de sensibilisation — ${tr.person}`;
+          const evidences = ws.evidences.filter((e) => !(e.title === title && e.validUntil === tr.validUntil));
+          return log(
+            { ...ws, trainings: ws.trainings.filter((x) => x.id !== id), evidences },
+            `Sensibilisation retirée du registre : ${tr.person}`,
+          );
         }),
       removeSupplier: (id) =>
         commit((ws) => {

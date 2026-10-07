@@ -13,11 +13,13 @@ import {
   frameworkScores,
   isEvidenceValid,
   scoreOf,
+  today,
 } from "@/lib/domain";
 import { INCIDENT_STATUS_LABELS } from "@/lib/incidents";
 import { IMPACT_LABELS, LIKELIHOOD_LABELS, RISK_LEVEL_LABELS, riskLevel, TREATMENT_LABELS } from "@/lib/risks";
 import { useWorkspace } from "@/lib/store";
 import { CRITICALITY_LABELS, DATA_ACCESS_LABELS, questionnaireScore } from "@/lib/suppliers";
+import { AUDIENCE_LABELS, METHOD_LABELS, trainingStatus } from "@/lib/training";
 
 function Chapter({ n, title, children, first }: { n: number; title: string; children: ReactNode; first?: boolean }) {
   return (
@@ -48,6 +50,7 @@ export default function DossierAudit() {
     s,
     CONTROLS.filter((c) => ws.controls[c.id]?.applicable && ws.controls[c.id].status === s).length,
   ] as const);
+  const training = trainingStatus(ws.trainings, today());
   const targets = [ws.answers.targetIso27001 && "ISO/IEC 27001:2022", ws.answers.targetNis2 && "Directive NIS2"]
     .filter(Boolean)
     .join(" et ");
@@ -357,7 +360,49 @@ export default function DossierAudit() {
           )}
         </Chapter>
 
-        <Chapter n={8} title="Journal des dernières actions">
+        <Chapter n={8} title="Sensibilisation des équipes">
+          {training.latestByPerson.length === 0 ? (
+            <p className="text-ink-soft">Aucune sensibilisation enregistrée.</p>
+          ) : (
+            <>
+              <p className="mb-4 text-ink-soft">
+                {training.valid.length} personne{training.valid.length > 1 ? "s" : ""} à jour, {training.expired.length} à
+                renouveler. Validité d&apos;une sensibilisation : un an.
+              </p>
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className={th}>Personne</th>
+                    <th className={th}>Fonction</th>
+                    <th className={th}>Modalité</th>
+                    <th className={th}>Date</th>
+                    <th className={th}>Valable jusqu&apos;au</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {training.latestByPerson.map((t) => (
+                    <tr key={t.id} className="break-inside-avoid">
+                      <td className={td}>{t.person}</td>
+                      <td className={td}>{AUDIENCE_LABELS[t.audience]}</td>
+                      <td className={td}>
+                        {METHOD_LABELS[t.method]}
+                        {t.score !== null && ` (${t.score}/10)`}
+                        {t.notes && <span className="block text-xs text-ink-faint">{t.notes}</span>}
+                      </td>
+                      <td className={`${td} tabular`}>{formatDate(t.date)}</td>
+                      <td className={`${td} tabular`}>
+                        {formatDate(t.validUntil)}
+                        {t.validUntil < today() && <span className="block text-xs font-semibold">Expirée</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </Chapter>
+
+        <Chapter n={9} title="Journal des dernières actions">
           <table className="w-full">
             <tbody>
               {ws.activity.slice(0, 40).map((a) => (

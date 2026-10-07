@@ -16,6 +16,7 @@ import {
 } from "./domain";
 import { riskLevel } from "./risks";
 import { ISSUE_LABELS, supplierIssues } from "./suppliers";
+import { trainingStatus } from "./training";
 
 export type FindingLevel = "majeur" | "mineur" | "observation";
 
@@ -229,6 +230,34 @@ export function mockAudit(ws: Workspace, now = new Date()): Finding[] {
           href: "/fournisseurs",
         });
       }
+    }
+  }
+
+  // 2 ter. Sensibilisation (A.6.3, §7.3)
+  if (ws.controls["A.6.3"]?.applicable) {
+    const tr = trainingStatus(ws.trainings, t);
+    if (tr.valid.length === 0) {
+      out.push({
+        id: "sensibilisation",
+        level: "mineur",
+        ref: "A.6.3 · §7.3",
+        title: "Aucune sensibilisation à jour",
+        observed: "L'auditeur interrogera le personnel et demandera la preuve d'une sensibilisation récente.",
+        action: "Faites passer le quiz de sensibilisation à chaque personne : l'attestation est enregistrée automatiquement comme preuve.",
+        controlIds: ["A.6.3"],
+        href: "/sensibilisation",
+      });
+    } else if (tr.expired.length) {
+      out.push({
+        id: "sensibilisation-expiree",
+        level: "observation",
+        ref: "A.6.3",
+        title: `Sensibilisation à renouveler pour ${tr.expired.length} personne${tr.expired.length > 1 ? "s" : ""}`,
+        observed: tr.expired.map((r) => r.person).join(", "),
+        action: "Planifiez le renouvellement annuel.",
+        controlIds: ["A.6.3"],
+        href: "/sensibilisation",
+      });
     }
   }
 

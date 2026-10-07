@@ -62,7 +62,17 @@ function complete(): Workspace {
     notes: "",
     createdAt: NOW.toISOString(),
   };
-  return { ...ws, controls, evidences, risks: [1, 2, 3, 4, 5].map(risk), suppliers: [supplier] };
+  const training = {
+    id: "t1",
+    person: "Alice",
+    audience: "dirigeant" as const,
+    method: "quiz" as const,
+    date: "2026-10-01",
+    score: 9,
+    validUntil: "2027-10-01",
+    notes: "",
+  };
+  return { ...ws, controls, evidences, risks: [1, 2, 3, 4, 5].map(risk), suppliers: [supplier], trainings: [training] };
 }
 
 describe("audit blanc", () => {

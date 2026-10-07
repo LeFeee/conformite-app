@@ -228,3 +228,25 @@ describe("fournisseurs", async () => {
     );
   });
 });
+
+describe("sensibilisation", async () => {
+  const { QUIZ, quizScore, trainingStatus } = await import("./training");
+
+  it("note le quiz sur le nombre de bonnes réponses", () => {
+    expect(quizScore(QUIZ.map((q) => q.correct))).toBe(QUIZ.length);
+    expect(quizScore(QUIZ.map(() => null))).toBe(0);
+  });
+
+  it("garde la formation la plus récente par personne et repère les expirations", () => {
+    const rec = (person: string, date: string, validUntil: string, audience: "salarie" | "dirigeant" = "salarie") => ({
+      id: person + date, person, audience, method: "quiz" as const, date, score: 9, validUntil, notes: "",
+    });
+    const s = trainingStatus(
+      [rec("Alice", "2025-01-01", "2026-01-01"), rec("alice", "2026-09-01", "2027-09-01", "dirigeant"), rec("Bob", "2025-02-01", "2026-02-01")],
+      "2026-10-07",
+    );
+    expect(s.latestByPerson.length).toBe(2);
+    expect(s.expired.map((r) => r.person)).toEqual(["Bob"]);
+    expect(s.leadersTrained).toBe(true);
+  });
+});

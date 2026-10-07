@@ -7,6 +7,7 @@ import type { Control, ControlStatus, FrameworkId } from "./catalog/types";
 import { formatRemaining, incidentDeadlines, type Incident } from "./incidents";
 import { riskLevel, type Risk } from "./risks";
 import { ISSUE_LABELS, supplierIssues, type Supplier } from "./suppliers";
+import { trainingStatus, type TrainingRecord } from "./training";
 import {
   assessNis2,
   computeApplicability,
@@ -73,12 +74,13 @@ export interface Workspace {
   risks: Risk[];
   incidents: Incident[];
   suppliers: Supplier[];
+  trainings: TrainingRecord[];
   activity: ActivityEntry[];
 }
 
 /** Complète un espace enregistré par une version antérieure. */
 export function normalizeWorkspace(ws: Workspace): Workspace {
-  return { ...ws, risks: ws.risks ?? [], incidents: ws.incidents ?? [], suppliers: ws.suppliers ?? [] };
+  return { ...ws, risks: ws.risks ?? [], incidents: ws.incidents ?? [], suppliers: ws.suppliers ?? [], trainings: ws.trainings ?? [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -112,6 +114,7 @@ export function createWorkspace(answers: ScopingAnswers, now = new Date()): Work
     risks: [],
     incidents: [],
     suppliers: [],
+    trainings: [],
     activity: [
       {
         id: uid(),
@@ -365,6 +368,26 @@ export function computeAlerts(ws: Workspace, now = new Date()): Alert[] {
       title: `Fournisseur à traiter : ${sup.name}`,
       detail: issues.map((i) => ISSUE_LABELS[i]).join(" · ") + ".",
       href: "/fournisseurs",
+    });
+  }
+
+  const tr = trainingStatus(ws.trainings, t);
+  if (tr.expired.length) {
+    alerts.push({
+      id: "training-expired",
+      severity: "attention",
+      title: `Sensibilisation à renouveler pour ${tr.expired.length} personne${tr.expired.length > 1 ? "s" : ""}`,
+      detail: tr.expired.map((r) => r.person).join(", ") + ".",
+      href: "/sensibilisation",
+    });
+  }
+  if (ws.controls["NIS2.20"]?.applicable && !tr.leadersTrained) {
+    alerts.push({
+      id: "training-leaders",
+      severity: "attention",
+      title: "Dirigeants non formés à la cybersécurité",
+      detail: "NIS2 impose une formation des dirigeants. Faites passer le quiz ou enregistrez une formation externe.",
+      href: "/sensibilisation",
     });
   }
 
