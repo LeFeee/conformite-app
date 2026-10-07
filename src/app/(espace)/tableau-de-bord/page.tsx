@@ -13,6 +13,7 @@ import {
   nextActions,
   scoreOf,
 } from "@/lib/domain";
+import { readiness } from "@/lib/readiness";
 import { useWorkspace } from "@/lib/store";
 
 const ORDER: ControlStatus[] = ["conforme", "en_cours", "a_faire"];
@@ -57,6 +58,7 @@ export default function TableauDeBord() {
       themes,
       alerts: computeAlerts(ws),
       actions: nextActions(ws),
+      cert: readiness(ws),
     };
   }, [ws]);
 
@@ -75,6 +77,21 @@ export default function TableauDeBord() {
           </>
         }
       />
+
+      {ws.answers.targetIso27001 && (
+        <Link
+          href="/certification"
+          className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-surface px-5 py-3 text-sm hover:border-line-strong"
+        >
+          <span>
+            <span className="font-semibold">Audit blanc ISO 27001 : </span>
+            {data.cert.stage2Ready
+              ? "prêt pour l'audit de certification."
+              : `${data.cert.majeurs} écart${data.cert.majeurs > 1 ? "s" : ""} majeur${data.cert.majeurs > 1 ? "s" : ""} et ${data.cert.mineurs} mineur${data.cert.mineurs > 1 ? "s" : ""} à traiter avant la certification.`}
+          </span>
+          <span className="font-medium underline decoration-line-strong underline-offset-4">Voir le plan d&apos;actions</span>
+        </Link>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Section title="État de la démarche" aside={`${data.total.applicable} contrôles applicables`}>

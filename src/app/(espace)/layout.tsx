@@ -13,9 +13,11 @@ const NAV = [
   { href: "/controles", label: "Contrôles" },
   { href: "/risques", label: "Risques" },
   { href: "/incidents", label: "Incidents" },
+  { href: "/fournisseurs", label: "Fournisseurs" },
   { href: "/documents", label: "Documents" },
   { href: "/applicabilite", label: "Déclaration d'applicabilité" },
   { href: "/nis2", label: "NIS2" },
+  { href: "/certification", label: "Certification" },
   { href: "/dossier-audit", label: "Dossier d'audit" },
   { href: "/journal", label: "Journal" },
 ];

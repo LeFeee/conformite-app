@@ -19,6 +19,7 @@ import type { ControlStatus } from "./catalog/types";
 import { STATUS_LABELS } from "./catalog/types";
 import type { Incident } from "./incidents";
 import type { Risk } from "./risks";
+import type { Supplier } from "./suppliers";
 import {
   createWorkspace,
   normalizeWorkspace,
@@ -47,6 +48,9 @@ interface Ctx {
   addIncident: (i: Omit<Incident, "id" | "createdAt">) => string;
   updateIncident: (id: string, patch: Partial<Omit<Incident, "id">>) => void;
   removeIncident: (id: string) => void;
+  addSupplier: (s: Omit<Supplier, "id" | "createdAt">) => void;
+  updateSupplier: (id: string, patch: Partial<Omit<Supplier, "id">>) => void;
+  removeSupplier: (id: string) => void;
 }
 
 const WorkspaceContext = createContext<Ctx | null>(null);
@@ -190,6 +194,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }),
       removeIncident: (id) =>
         commit((ws) => ({ ...ws, incidents: ws.incidents.filter((x) => x.id !== id) })),
+      addSupplier: (sup) =>
+        commit((ws) =>
+          log(
+            { ...ws, suppliers: [{ ...sup, id: uid(), createdAt: new Date().toISOString() }, ...ws.suppliers] },
+            `Fournisseur ajouté : ${sup.name}`,
+          ),
+        ),
+      updateSupplier: (id, patch) =>
+        commit((ws) => {
+          const prev = ws.suppliers.find((x) => x.id === id);
+          let next: Workspace = { ...ws, suppliers: ws.suppliers.map((x) => (x.id === id ? { ...x, ...patch } : x)) };
+          if (prev && patch.questionnaireSentAt && !prev.questionnaireSentAt) next = log(next, `Questionnaire envoyé à ${prev.name}`);
+          if (prev && patch.answeredAt && !prev.answeredAt) next = log(next, `Réponses au questionnaire reçues de ${prev.name}`);
+          return next;
+        }),
+      removeSupplier: (id) =>
+        commit((ws) => {
+          const prev = ws.suppliers.find((x) => x.id === id);
+          const next = { ...ws, suppliers: ws.suppliers.filter((x) => x.id !== id) };
+          return prev ? log(next, `Fournisseur supprimé : ${prev.name}`) : next;
+        }),
     }),
     [ready, workspace, commit],
   );

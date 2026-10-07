@@ -200,3 +200,31 @@ describe("niveaux de risque", () => {
     expect(riskLevel(3, 4)).toBe("critique");
   });
 });
+
+describe("fournisseurs", async () => {
+  const { questionnaireScore, blockingGaps, supplierIssues, SUPPLIER_QUESTIONNAIRE } = await import("./suppliers");
+  const all = (a: "oui" | "partiel" | "non") => Object.fromEntries(SUPPLIER_QUESTIONNAIRE.map((q) => [q.id, a]));
+
+  it("calcule le score pondéré du questionnaire", () => {
+    expect(questionnaireScore({})).toBeNull();
+    expect(questionnaireScore(all("oui"))).toBe(100);
+    expect(questionnaireScore(all("partiel"))).toBe(50);
+    expect(questionnaireScore(all("non"))).toBe(0);
+  });
+
+  it("repère les réponses négatives sur les points essentiels", () => {
+    expect(blockingGaps({ ...all("oui"), mfa: "non" }).map((q) => q.id)).toEqual(["mfa"]);
+  });
+
+  it("ne surveille pas un fournisseur standard sans données", () => {
+    const base = {
+      id: "x", name: "Papeterie", service: "", contact: "", criticality: "standard" as const, dataAccess: "aucune" as const,
+      hasSecurityClauses: false, hasDpa: false, certifications: "", questionnaireSentAt: null, answers: {}, answeredAt: null,
+      lastReviewAt: null, notes: "", createdAt: NOW.toISOString(),
+    };
+    expect(supplierIssues(base, NOW)).toEqual([]);
+    expect(supplierIssues({ ...base, dataAccess: "personnelles" }, NOW)).toEqual(
+      expect.arrayContaining(["sans_clauses", "sans_dpa", "questionnaire_absent"]),
+    );
+  });
+});

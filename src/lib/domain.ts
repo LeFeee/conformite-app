@@ -6,6 +6,7 @@ import { FRAMEWORKS } from "./catalog/frameworks";
 import type { Control, ControlStatus, FrameworkId } from "./catalog/types";
 import { formatRemaining, incidentDeadlines, type Incident } from "./incidents";
 import { riskLevel, type Risk } from "./risks";
+import { ISSUE_LABELS, supplierIssues, type Supplier } from "./suppliers";
 import {
   assessNis2,
   computeApplicability,
@@ -71,12 +72,13 @@ export interface Workspace {
   evidences: Evidence[];
   risks: Risk[];
   incidents: Incident[];
+  suppliers: Supplier[];
   activity: ActivityEntry[];
 }
 
 /** Complète un espace enregistré par une version antérieure. */
 export function normalizeWorkspace(ws: Workspace): Workspace {
-  return { ...ws, risks: ws.risks ?? [], incidents: ws.incidents ?? [] };
+  return { ...ws, risks: ws.risks ?? [], incidents: ws.incidents ?? [], suppliers: ws.suppliers ?? [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +111,7 @@ export function createWorkspace(answers: ScopingAnswers, now = new Date()): Work
     evidences: [],
     risks: [],
     incidents: [],
+    suppliers: [],
     activity: [
       {
         id: uid(),
@@ -351,6 +354,18 @@ export function computeAlerts(ws: Workspace, now = new Date()): Alert[] {
         href: "/risques",
       });
     }
+  }
+
+  for (const sup of ws.suppliers) {
+    const issues = supplierIssues(sup, now);
+    if (!issues.length) continue;
+    alerts.push({
+      id: `sup-${sup.id}`,
+      severity: sup.criticality === "critique" && issues.includes("point_bloquant") ? "attention" : "info",
+      title: `Fournisseur à traiter : ${sup.name}`,
+      detail: issues.map((i) => ISSUE_LABELS[i]).join(" · ") + ".",
+      href: "/fournisseurs",
+    });
   }
 
   const order: Record<AlertSeverity, number> = { critique: 0, attention: 1, info: 2 };

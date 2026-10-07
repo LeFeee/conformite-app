@@ -17,6 +17,7 @@ import {
 import { INCIDENT_STATUS_LABELS } from "@/lib/incidents";
 import { IMPACT_LABELS, LIKELIHOOD_LABELS, RISK_LEVEL_LABELS, riskLevel, TREATMENT_LABELS } from "@/lib/risks";
 import { useWorkspace } from "@/lib/store";
+import { CRITICALITY_LABELS, DATA_ACCESS_LABELS, questionnaireScore } from "@/lib/suppliers";
 
 function Chapter({ n, title, children, first }: { n: number; title: string; children: ReactNode; first?: boolean }) {
   return (
@@ -311,7 +312,52 @@ export default function DossierAudit() {
           )}
         </Chapter>
 
-        <Chapter n={7} title="Journal des dernières actions">
+        <Chapter n={7} title="Fournisseurs">
+          {ws.suppliers.length === 0 ? (
+            <p className="text-ink-soft">Aucun fournisseur recensé.</p>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className={th}>Fournisseur</th>
+                  <th className={th}>Criticité</th>
+                  <th className={th}>Données</th>
+                  <th className={th}>Contrat</th>
+                  <th className={th}>Questionnaire</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ws.suppliers.map((sup) => {
+                  const score = questionnaireScore(sup.answers);
+                  return (
+                    <tr key={sup.id} className="break-inside-avoid">
+                      <td className={td}>
+                        {sup.name}
+                        <span className="block text-xs text-ink-faint">
+                          {sup.service}
+                          {sup.certifications && ` · ${sup.certifications}`}
+                        </span>
+                      </td>
+                      <td className={td}>{CRITICALITY_LABELS[sup.criticality]}</td>
+                      <td className={td}>{DATA_ACCESS_LABELS[sup.dataAccess]}</td>
+                      <td className={`${td} text-xs`}>
+                        Clauses sécurité : {sup.hasSecurityClauses ? "oui" : "non"}
+                        <br />
+                        Accord RGPD : {sup.hasDpa ? "oui" : "non"}
+                      </td>
+                      <td className={`${td} tabular`}>
+                        {score !== null ? `${score} %` : sup.questionnaireSentAt ? "Envoyé, sans réponse" : "Non envoyé"}
+                        {sup.answeredAt && <span className="block text-xs text-ink-faint">{formatDate(sup.answeredAt)}</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </Chapter>
+
+        <Chapter n={8} title="Journal des dernières actions">
           <table className="w-full">
             <tbody>
               {ws.activity.slice(0, 40).map((a) => (
