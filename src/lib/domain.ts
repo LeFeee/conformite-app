@@ -4,6 +4,7 @@
 import { CONTROLS, CONTROLS_BY_ID } from "./catalog/controls";
 import { FRAMEWORKS } from "./catalog/frameworks";
 import type { Control, ControlStatus, FrameworkId } from "./catalog/types";
+import { ASSET_ISSUE_LABELS, assetIssues, MIN_ASSETS, type Asset } from "./assets";
 import { formatRemaining, incidentDeadlines, type Incident } from "./incidents";
 import { riskLevel, type Risk } from "./risks";
 import { ISSUE_LABELS, supplierIssues, type Supplier } from "./suppliers";
@@ -75,12 +76,13 @@ export interface Workspace {
   incidents: Incident[];
   suppliers: Supplier[];
   trainings: TrainingRecord[];
+  assets: Asset[];
   activity: ActivityEntry[];
 }
 
 /** Complète un espace enregistré par une version antérieure. */
 export function normalizeWorkspace(ws: Workspace): Workspace {
-  return { ...ws, risks: ws.risks ?? [], incidents: ws.incidents ?? [], suppliers: ws.suppliers ?? [], trainings: ws.trainings ?? [] };
+  return { ...ws, risks: ws.risks ?? [], incidents: ws.incidents ?? [], suppliers: ws.suppliers ?? [], trainings: ws.trainings ?? [], assets: ws.assets ?? [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -115,6 +117,7 @@ export function createWorkspace(answers: ScopingAnswers, now = new Date()): Work
     incidents: [],
     suppliers: [],
     trainings: [],
+    assets: [],
     activity: [
       {
         id: uid(),
@@ -369,6 +372,30 @@ export function computeAlerts(ws: Workspace, now = new Date()): Alert[] {
       detail: issues.map((i) => ISSUE_LABELS[i]).join(" · ") + ".",
       href: "/fournisseurs",
     });
+  }
+
+  if (ws.controls["A.5.9"]?.applicable) {
+    if (ws.assets.length < MIN_ASSETS) {
+      alerts.push({
+        id: "assets-inventory",
+        severity: "info",
+        title: ws.assets.length ? "Inventaire des actifs à compléter" : "Inventaire des actifs à faire",
+        detail: `L'auditeur demandera la liste de ce que vous protégez (données, applications, matériel). ${ws.assets.length} actif${ws.assets.length > 1 ? "s" : ""} recensé${ws.assets.length > 1 ? "s" : ""} pour l'instant.`,
+        href: "/actifs",
+      });
+    }
+    const withIssues = ws.assets.filter((x) => assetIssues(x, now).length);
+    if (withIssues.length) {
+      const counts = new Map<string, number>();
+      for (const x of withIssues) for (const i of assetIssues(x, now)) counts.set(ASSET_ISSUE_LABELS[i], (counts.get(ASSET_ISSUE_LABELS[i]) ?? 0) + 1);
+      alerts.push({
+        id: "assets-issues",
+        severity: "info",
+        title: `${withIssues.length} actif${withIssues.length > 1 ? "s" : ""} à compléter dans l'inventaire`,
+        detail: [...counts].map(([label, n]) => `${label} : ${n}`).join(" · ") + ".",
+        href: "/actifs",
+      });
+    }
   }
 
   const tr = trainingStatus(ws.trainings, t);

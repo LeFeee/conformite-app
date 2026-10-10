@@ -14,6 +14,7 @@ import {
   today,
   type Workspace,
 } from "./domain";
+import { assetIssues, inventoryReady, MIN_ASSETS } from "./assets";
 import { riskLevel } from "./risks";
 import { ISSUE_LABELS, supplierIssues } from "./suppliers";
 import { trainingStatus } from "./training";
@@ -63,35 +64,46 @@ export interface RequiredDoc {
   template?: string;
   /** exigence complémentaire calculée */
   check?: (ws: Workspace) => boolean;
+  /** écran de l'outil qui produit ce document */
+  page?: { href: string; label: string };
   stage: 1 | 2; // examiné dès l'étape 1 (revue documentaire) ou en étape 2
 }
 
 export const REQUIRED_DOCS: RequiredDoc[] = [
-  { id: "perimetre", ref: "§4.3", title: "Périmètre du SMSI", controlIds: ["SMSI.4"], stage: 1 },
+  { id: "perimetre", ref: "§4.3", title: "Périmètre du SMSI", controlIds: ["SMSI.4"], template: "perimetre-smsi", stage: 1 },
   { id: "politique", ref: "§5.2", title: "Politique de sécurité de l'information", controlIds: ["SMSI.5", "A.5.1"], template: "politique-securite", stage: 1 },
-  { id: "methode-risques", ref: "§6.1.2 · §6.1.3", title: "Méthode d'appréciation et de traitement des risques", controlIds: ["SMSI.6.1"], stage: 1 },
-  { id: "soa", ref: "§6.1.3 d)", title: "Déclaration d'applicabilité", controlIds: ["SMSI.SOA"], stage: 1 },
-  { id: "objectifs", ref: "§6.2", title: "Objectifs de sécurité", controlIds: ["SMSI.6.2"], stage: 1 },
+  { id: "methode-risques", ref: "§6.1.2 · §6.1.3", title: "Méthode d'appréciation et de traitement des risques", controlIds: ["SMSI.6.1"], template: "methode-risques", stage: 1 },
+  { id: "soa", ref: "§6.1.3 d)", title: "Déclaration d'applicabilité", controlIds: ["SMSI.SOA"], page: { href: "/applicabilite", label: "Déclaration d'applicabilité" }, stage: 1 },
+  { id: "objectifs", ref: "§6.2", title: "Objectifs de sécurité", controlIds: ["SMSI.6.2"], template: "objectifs-securite", stage: 1 },
   { id: "competences", ref: "§7.2", title: "Preuves de compétences", controlIds: ["SMSI.7"], stage: 2 },
-  { id: "maitrise-doc", ref: "§7.5 · §8.1", title: "Maîtrise de la documentation et planification opérationnelle", controlIds: ["SMSI.7.5"], stage: 1 },
+  { id: "maitrise-doc", ref: "§7.5 · §8.1", title: "Maîtrise de la documentation et planification opérationnelle", controlIds: ["SMSI.7.5"], template: "liste-documents", stage: 1 },
   {
     id: "resultats-risques",
     ref: "§8.2 · §8.3",
     title: "Résultats de l'appréciation et du traitement des risques",
     controlIds: ["SMSI.6.1"],
     check: (ws) => ws.risks.length >= 5,
+    page: { href: "/risques", label: "Registre des risques" },
     stage: 1,
   },
   { id: "surveillance", ref: "§9.1", title: "Résultats de surveillance et de mesure", controlIds: ["SMSI.9.1"], stage: 2 },
   { id: "audit-interne", ref: "§9.2", title: "Programme et résultats d'audit interne", controlIds: ["SMSI.9.2"], stage: 2 },
   { id: "revue-direction", ref: "§9.3", title: "Résultats de la revue de direction", controlIds: ["SMSI.9.3"], template: "revue-de-direction", stage: 2 },
   { id: "actions-correctives", ref: "§10.2", title: "Non-conformités et actions correctives", controlIds: ["SMSI.10"], stage: 2 },
-  { id: "inventaire", ref: "A.5.9", title: "Inventaire des actifs", controlIds: ["A.5.9"], stage: 2 },
+  {
+    id: "inventaire",
+    ref: "A.5.9",
+    title: "Inventaire des actifs",
+    controlIds: ["A.5.9"],
+    check: (ws) => inventoryReady(ws.assets),
+    page: { href: "/actifs", label: "Inventaire des actifs" },
+    stage: 2,
+  },
   { id: "charte", ref: "A.5.10", title: "Règles d'utilisation des actifs (charte)", controlIds: ["A.5.10"], template: "charte-informatique", stage: 2 },
-  { id: "acces", ref: "A.5.15", title: "Politique de contrôle d'accès", controlIds: ["A.5.15"], stage: 2 },
+  { id: "acces", ref: "A.5.15", title: "Politique de contrôle d'accès", controlIds: ["A.5.15"], template: "politique-acces", stage: 2 },
   { id: "incidents", ref: "A.5.24", title: "Procédure de gestion des incidents", controlIds: ["A.5.24"], template: "procedure-incident", stage: 2 },
   { id: "continuite", ref: "A.5.30", title: "Plan de continuité et de reprise", controlIds: ["A.5.30"], template: "plan-continuite", stage: 2 },
-  { id: "legal", ref: "A.5.31", title: "Registre des exigences légales et contractuelles", controlIds: ["A.5.31"], stage: 2 },
+  { id: "legal", ref: "A.5.31", title: "Registre des exigences légales et contractuelles", controlIds: ["A.5.31"], template: "registre-legal", stage: 2 },
 ];
 
 export type DocState = "present" | "sans_preuve" | "manquant" | "non_applicable";
@@ -231,6 +243,24 @@ export function mockAudit(ws: Workspace, now = new Date()): Finding[] {
         });
       }
     }
+  }
+
+  // 2 bis bis. Inventaire des actifs (A.5.9)
+  if (ws.controls["A.5.9"]?.applicable && !inventoryReady(ws.assets, now)) {
+    const orphans = ws.assets.filter((x) => assetIssues(x, now).includes("sans_proprietaire"));
+    out.push({
+      id: "inventaire-actifs",
+      level: "mineur",
+      ref: "A.5.9",
+      title: ws.assets.length < MIN_ASSETS ? "Inventaire des actifs incomplet" : "Actifs sans responsable",
+      observed:
+        ws.assets.length < MIN_ASSETS
+          ? `${ws.assets.length} actif${ws.assets.length > 1 ? "s" : ""} recensé${ws.assets.length > 1 ? "s" : ""} : l'auditeur attend la liste de ce que vous protégez, chacun avec un responsable.`
+          : `${orphans.length} actif${orphans.length > 1 ? "s" : ""} sans responsable désigné : ${orphans.map((x) => x.name).join(", ")}.`,
+      action: "Complétez l'inventaire (données, applications, services en ligne, matériel) et désignez un responsable pour chaque actif.",
+      controlIds: ["A.5.9"],
+      href: "/actifs",
+    });
   }
 
   // 2 ter. Sensibilisation (A.6.3, §7.3)

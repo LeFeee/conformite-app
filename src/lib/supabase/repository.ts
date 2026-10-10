@@ -50,7 +50,7 @@ function must<T>(res: { data: T | null; error: { message: string } | null }, wha
 
 export async function loadWorkspace(orgId: string, sb: SupabaseClient = supabaseBrowser()): Promise<Workspace> {
   const byOrg = (table: string) => sb.from(table).select("*").eq("org_id", orgId);
-  const [org, controls, evidences, risks, incidents, suppliers, trainings, activity] = await Promise.all([
+  const [org, controls, evidences, risks, incidents, suppliers, trainings, assets, activity] = await Promise.all([
     sb.from("organizations").select("*").eq("id", orgId).single(),
     byOrg("org_controls"),
     byOrg("evidences"),
@@ -58,6 +58,7 @@ export async function loadWorkspace(orgId: string, sb: SupabaseClient = supabase
     byOrg("incidents"),
     byOrg("suppliers"),
     byOrg("trainings"),
+    byOrg("assets"),
     byOrg("activity_log").order("at", { ascending: false }).limit(500),
   ]);
   const rows: WorkspaceRows = {
@@ -68,6 +69,7 @@ export async function loadWorkspace(orgId: string, sb: SupabaseClient = supabase
     incidents: must(incidents, "incidents"),
     suppliers: must(suppliers, "fournisseurs"),
     trainings: must(trainings, "sensibilisation"),
+    assets: must(assets, "actifs"),
     activity: must(activity, "journal"),
   };
   return workspaceFromRows(rows);

@@ -3,6 +3,7 @@ import { createWorkspace, type Workspace } from "../domain";
 import { DEFAULT_ANSWERS, type ScopingAnswers } from "../scoping";
 import {
   activityToRow,
+  assetToRow,
   controlToRow,
   evidenceToRow,
   incidentToRow,
@@ -53,6 +54,10 @@ function fullWorkspace(): Workspace {
     trainings: [
       { id: id(5), person: "Fabien", audience: "dirigeant", method: "quiz", date: "2026-10-07", score: 9, validUntil: "2027-10-07", notes: "" },
     ],
+    assets: [
+      { id: id(7), name: "Base de données de production", category: "donnees", description: "", owner: "Fabien", classification: "sensible", essential: true, personalData: true, location: "Scaleway Paris", supplierId: id(4), reviewedAt: NOW.toISOString(), createdAt: NOW.toISOString() },
+      { id: id(8), name: "Code source", category: "donnees", description: "", owner: null, classification: "confidentiel", essential: true, personalData: false, location: "GitHub", supplierId: null, reviewedAt: null, createdAt: "2026-10-08T09:00:00.000Z" },
+    ],
   };
 }
 
@@ -77,6 +82,7 @@ function asRows(ws: Workspace) {
     incidents: ws.incidents.map((i) => ({ ...incidentToRow(i, ORG), detected_at: pg(i.detectedAt) })),
     suppliers: ws.suppliers.map((s) => supplierToRow(s, ORG)),
     trainings: ws.trainings.map((t) => trainingToRow(t, ORG)),
+    assets: [...ws.assets].reverse().map((x) => ({ ...assetToRow(x, ORG), created_at: pg(x.createdAt) })),
     activity: ws.activity.map((a, n) => ({ ...activityToRow(a, ORG, USER), id: n + 1 })),
   };
 }
@@ -144,7 +150,7 @@ describe("synchronisation", () => {
     const summary = describeOps(diffWorkspace(null, base, ORG, USER));
     expect(summary[0]).toBe("organisation");
     expect(summary.filter((s) => s.startsWith("contrôle")).length).toBe(Object.keys(base.controls).length);
-    expect(summary).toEqual(expect.arrayContaining(["evidences +1", "risks +1", "incidents +1", "suppliers +1", "trainings +1", "journal +1"]));
+    expect(summary).toEqual(expect.arrayContaining(["evidences +1", "risks +1", "incidents +1", "suppliers +1", "trainings +1", "assets +2", "journal +1"]));
   });
 
   it("remplace les identifiants non UUID avant l'import", () => {
@@ -152,5 +158,17 @@ describe("synchronisation", () => {
     const ws = withUuids({ ...base, risks: [{ ...base.risks[0], id: "abc123" }] }, () => id(n++));
     expect(ws.risks[0].id).toBe(id(100));
     expect(ws.evidences[0].id).toBe(id(1));
+  });
+
+  it("garde le lien entre un actif et son fournisseur quand l'identifiant change", () => {
+    const demo = {
+      ...base,
+      suppliers: [{ ...base.suppliers[0], id: "fournisseur-local" }],
+      assets: [{ ...base.assets[0], id: "actif-local", supplierId: "fournisseur-local" }],
+    };
+    let n = 200;
+    const ws = withUuids(demo, () => id(n++));
+    expect(ws.assets[0].supplierId).toBe(ws.suppliers[0].id);
+    expect(ws.suppliers[0].id).toBe(id(200));
   });
 });

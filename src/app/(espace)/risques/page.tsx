@@ -260,7 +260,12 @@ export default function Risques() {
         <form onSubmit={addCustom} className="grid gap-4 p-5 md:grid-cols-[1fr_2fr_10rem_10rem_auto] md:items-end">
           <label className="text-sm">
             <span className="mb-1 block text-ink-soft">Ce qui est menacé</span>
-            <input className={inputClass} value={asset} onChange={(e) => setAsset(e.target.value)} placeholder="Ex. Machine à commande numérique" />
+            <input className={inputClass} value={asset} onChange={(e) => setAsset(e.target.value)} placeholder="Ex. Machine à commande numérique" list="actifs-inventaire" />
+            <datalist id="actifs-inventaire">
+              {ws.assets.map((x) => (
+                <option key={x.id} value={x.name} />
+              ))}
+            </datalist>
           </label>
           <label className="text-sm">
             <span className="mb-1 block text-ink-soft">Ce qui pourrait arriver</span>

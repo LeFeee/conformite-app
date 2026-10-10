@@ -160,6 +160,11 @@ export default function Certification() {
                     <Link href={`/controles/${encodeURIComponent(doc.controlIds[0])}`} className="hover:underline">
                       {doc.title}
                     </Link>
+                    {doc.page && state !== "present" && (
+                      <Link href={doc.page.href} className="block text-xs text-ink-soft underline decoration-line-strong underline-offset-2 print:hidden">
+                        Ouvrir : {doc.page.label}
+                      </Link>
+                    )}
                     {doc.template && state !== "present" && (
                       <Link href={`/documents/${doc.template}`} className="block text-xs text-ink-soft underline decoration-line-strong underline-offset-2 print:hidden">
                         Modèle : {templateTitle(doc.template)}

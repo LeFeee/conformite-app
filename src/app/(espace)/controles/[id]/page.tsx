@@ -7,6 +7,7 @@ import { useState, type FormEvent } from "react";
 import { Button, inputClass, Section, STATUS_COLOR } from "@/components/ui";
 import { CONTROLS_BY_ID } from "@/lib/catalog/controls";
 import { templatesForControl } from "@/lib/documents";
+import { modulesForControl } from "@/lib/modules";
 import { FRAMEWORKS, REQUIREMENTS_BY_ID } from "@/lib/catalog/frameworks";
 import { STATUS_LABELS, TAG_LABELS, THEME_LABELS, type ControlStatus } from "@/lib/catalog/types";
 import {
@@ -329,6 +330,21 @@ function ControleDetail({ id }: { id: string }) {
         </div>
 
         <div className="space-y-6">
+          {modulesForControl(id).length > 0 && (
+            <Section title="Dans l'outil">
+              <ul className="divide-y divide-line">
+                {modulesForControl(id).map((m) => (
+                  <li key={m.href}>
+                    <Link href={m.href} className="block px-5 py-3 hover:bg-paper">
+                      <span className="font-medium">{m.label}</span>
+                      <span className="mt-0.5 block text-sm text-ink-soft">{m.detail}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+
           {templatesForControl(id).length > 0 && (
             <Section title="Modèle disponible">
               <ul className="divide-y divide-line">

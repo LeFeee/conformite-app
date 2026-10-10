@@ -11,6 +11,7 @@ import { useWorkspace } from "@/lib/store";
 const NAV = [
   { href: "/tableau-de-bord", label: "Tableau de bord" },
   { href: "/controles", label: "Contrôles" },
+  { href: "/actifs", label: "Actifs" },
   { href: "/risques", label: "Risques" },
   { href: "/incidents", label: "Incidents" },
   { href: "/fournisseurs", label: "Fournisseurs" },
@@ -20,6 +21,7 @@ const NAV = [
   { href: "/nis2", label: "NIS2" },
   { href: "/certification", label: "Certification" },
   { href: "/dossier-audit", label: "Dossier d'audit" },
+  { href: "/fiche-securite", label: "Fiche sécurité clients" },
   { href: "/journal", label: "Journal" },
 ];
 

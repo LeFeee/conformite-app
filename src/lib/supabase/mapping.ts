@@ -1,6 +1,7 @@
 // Conversion entre les lignes Supabase (snake_case) et le modèle de l'application.
 // Logique pure, sans appel réseau : testée sans base.
 
+import type { Asset, AssetCategory, Classification } from "../assets";
 import type { ControlStatus } from "../catalog/types";
 import type {
   ActivityEntry,
@@ -116,6 +117,22 @@ export interface TrainingRow {
   score: number | null;
   valid_until: string;
   notes: string;
+}
+
+export interface AssetRow {
+  id: string;
+  org_id: string;
+  name: string;
+  category: AssetCategory;
+  description: string;
+  owner_name: string | null;
+  classification: Classification;
+  essential: boolean;
+  personal_data: boolean;
+  location: string;
+  supplier_id: string | null;
+  reviewed_at: string | null;
+  created_at: string;
 }
 
 export interface ActivityRow {
@@ -377,6 +394,41 @@ export function rowToTraining(r: TrainingRow): TrainingRecord {
   };
 }
 
+export function assetToRow(x: Asset, orgId: string): AssetRow {
+  return {
+    id: x.id,
+    org_id: orgId,
+    name: x.name,
+    category: x.category,
+    description: x.description,
+    owner_name: x.owner,
+    classification: x.classification,
+    essential: x.essential,
+    personal_data: x.personalData,
+    location: x.location,
+    supplier_id: x.supplierId,
+    reviewed_at: x.reviewedAt,
+    created_at: x.createdAt,
+  };
+}
+
+export function rowToAsset(r: AssetRow): Asset {
+  return {
+    id: r.id,
+    name: r.name,
+    category: r.category,
+    description: r.description ?? "",
+    owner: r.owner_name,
+    classification: r.classification,
+    essential: r.essential,
+    personalData: r.personal_data,
+    location: r.location ?? "",
+    supplierId: r.supplier_id,
+    reviewedAt: iso(r.reviewed_at),
+    createdAt: iso(r.created_at),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Journal
 // ---------------------------------------------------------------------------
@@ -425,6 +477,7 @@ export interface WorkspaceRows {
   incidents: IncidentRow[];
   suppliers: SupplierRow[];
   trainings: TrainingRow[];
+  assets: AssetRow[];
   activity: ActivityRow[];
 }
 
@@ -443,6 +496,8 @@ export function workspaceFromRows(rows: WorkspaceRows): Workspace {
     incidents: rows.incidents.map(rowToIncident).sort(newestFirst((i) => i.detectedAt)),
     suppliers: rows.suppliers.map(rowToSupplier).sort(newestFirst((s) => s.createdAt)),
     trainings: rows.trainings.map(rowToTraining).sort(newestFirst((t) => t.date)),
+    // l'inventaire garde l'ordre de saisie
+    assets: rows.assets.map(rowToAsset).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     activity: rows.activity.map(rowToActivity).sort(newestFirst((a) => a.at)),
   };
 }

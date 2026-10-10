@@ -1,3 +1,4 @@
+import { suggestedAssets } from "./assets";
 import { describe, expect, it } from "vitest";
 import { CONTROLS } from "./catalog/controls";
 import { createWorkspace, type Evidence, type Workspace } from "./domain";
@@ -72,7 +73,8 @@ function complete(): Workspace {
     validUntil: "2027-10-01",
     notes: "",
   };
-  return { ...ws, controls, evidences, risks: [1, 2, 3, 4, 5].map(risk), suppliers: [supplier], trainings: [training] };
+  const assets = suggestedAssets(ws.answers).map((d, i) => ({ ...d, id: `asset-${i}`, owner: "Fabien", createdAt: NOW.toISOString(), reviewedAt: NOW.toISOString(), supplierId: d.category === "service" ? supplier.id : null }));
+  return { ...ws, controls, evidences, risks: [1, 2, 3, 4, 5].map(risk), suppliers: [supplier], trainings: [training], assets };
 }
 
 describe("audit blanc", () => {
@@ -120,5 +122,26 @@ describe("audit blanc", () => {
   it("ne référence que des contrôles existants dans les documents exigés", () => {
     const ids = new Set(CONTROLS.map((c) => c.id));
     for (const d of REQUIRED_DOCS) for (const id of d.controlIds) expect(ids.has(id)).toBe(true);
+  });
+});
+
+describe("modèles de documents", async () => {
+  const { DOC_TEMPLATES, TEMPLATES_BY_SLUG } = await import("./documents");
+
+  it("se génèrent sans valeur manquante, sur un espace vide comme sur un espace complet", () => {
+    for (const ws of [createWorkspace(answers, NOW), complete()]) {
+      for (const t of DOC_TEMPLATES) {
+        const text = JSON.stringify(t.render(ws));
+        expect(text, t.slug).not.toMatch(/undefined|NaN|\[object/);
+        expect(t.render(ws).length, t.slug).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("propose un modèle pour chaque document de l'étape 1 qui n'est pas produit par un écran", () => {
+    for (const d of REQUIRED_DOCS.filter((x) => x.stage === 1)) {
+      expect(Boolean(d.template || d.page), d.id).toBe(true);
+      if (d.template) expect(TEMPLATES_BY_SLUG.has(d.template), d.template).toBe(true);
+    }
   });
 });

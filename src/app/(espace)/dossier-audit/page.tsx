@@ -20,6 +20,7 @@ import { IMPACT_LABELS, LIKELIHOOD_LABELS, RISK_LEVEL_LABELS, riskLevel, TREATME
 import { useWorkspace } from "@/lib/store";
 import { CRITICALITY_LABELS, DATA_ACCESS_LABELS, questionnaireScore } from "@/lib/suppliers";
 import { AUDIENCE_LABELS, METHOD_LABELS, trainingStatus } from "@/lib/training";
+import { CATEGORY_LABELS, CLASSIFICATION_LABELS } from "@/lib/assets";
 
 function Chapter({ n, title, children, first }: { n: number; title: string; children: ReactNode; first?: boolean }) {
   return (
@@ -230,7 +231,48 @@ export default function DossierAudit() {
           )}
         </Chapter>
 
-        <Chapter n={5} title="Registre des risques">
+        <Chapter n={5} title="Inventaire des actifs">
+          {ws.assets.length === 0 ? (
+            <p className="text-ink-soft">Aucun actif recensé.</p>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className={th}>Actif</th>
+                  <th className={th}>Type</th>
+                  <th className={th}>Sensibilité</th>
+                  <th className={th}>Responsable</th>
+                  <th className={th}>Emplacement</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ws.assets.map((x) => (
+                  <tr key={x.id} className="break-inside-avoid">
+                    <td className={td}>
+                      {x.name}
+                      {(x.essential || x.personalData) && (
+                        <span className="block text-xs text-ink-faint">
+                          {[x.essential && "Indispensable", x.personalData && "Données personnelles"].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
+                    </td>
+                    <td className={td}>{CATEGORY_LABELS[x.category]}</td>
+                    <td className={td}>{CLASSIFICATION_LABELS[x.classification]}</td>
+                    <td className={td}>{x.owner || "—"}</td>
+                    <td className={td}>
+                      {x.location || "—"}
+                      {x.supplierId && (
+                        <span className="block text-xs text-ink-faint">{ws.suppliers.find((s) => s.id === x.supplierId)?.name}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Chapter>
+
+        <Chapter n={6} title="Registre des risques">
           {ws.risks.length === 0 ? (
             <p className="text-ink-soft">Aucun risque enregistré.</p>
           ) : (
@@ -273,7 +315,7 @@ export default function DossierAudit() {
           )}
         </Chapter>
 
-        <Chapter n={6} title="Registre des incidents">
+        <Chapter n={7} title="Registre des incidents">
           {ws.incidents.length === 0 ? (
             <p className="text-ink-soft">Aucun incident enregistré.</p>
           ) : (
@@ -315,7 +357,7 @@ export default function DossierAudit() {
           )}
         </Chapter>
 
-        <Chapter n={7} title="Fournisseurs">
+        <Chapter n={8} title="Fournisseurs">
           {ws.suppliers.length === 0 ? (
             <p className="text-ink-soft">Aucun fournisseur recensé.</p>
           ) : (
@@ -360,7 +402,7 @@ export default function DossierAudit() {
           )}
         </Chapter>
 
-        <Chapter n={8} title="Sensibilisation des équipes">
+        <Chapter n={9} title="Sensibilisation des équipes">
           {training.latestByPerson.length === 0 ? (
             <p className="text-ink-soft">Aucune sensibilisation enregistrée.</p>
           ) : (
@@ -402,7 +444,7 @@ export default function DossierAudit() {
           )}
         </Chapter>
 
-        <Chapter n={9} title="Journal des dernières actions">
+        <Chapter n={10} title="Journal des dernières actions">
           <table className="w-full">
             <tbody>
               {ws.activity.slice(0, 40).map((a) => (

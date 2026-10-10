@@ -19,6 +19,7 @@ import {
 import { CONTROLS_BY_ID } from "./catalog/controls";
 import type { ControlStatus } from "./catalog/types";
 import { STATUS_LABELS } from "./catalog/types";
+import type { Asset, AssetDraft } from "./assets";
 import type { Incident } from "./incidents";
 import type { Risk } from "./risks";
 import type { Supplier } from "./suppliers";
@@ -68,6 +69,11 @@ interface Ctx {
   addSupplier: (s: Omit<Supplier, "id" | "createdAt">) => void;
   updateSupplier: (id: string, patch: Partial<Omit<Supplier, "id">>) => void;
   removeSupplier: (id: string) => void;
+  addAssets: (drafts: AssetDraft[]) => void;
+  updateAsset: (id: string, patch: Partial<Omit<Asset, "id" | "createdAt">>) => void;
+  /** confirme que la fiche est à jour (revue annuelle) */
+  reviewAsset: (id: string) => void;
+  removeAsset: (id: string) => void;
   addTraining: (t: Omit<TrainingRecord, "id">) => void;
   removeTraining: (id: string) => void;
 }
@@ -331,6 +337,32 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
           if (prev && patch.answeredAt && !prev.answeredAt) next = log(next, `Réponses au questionnaire reçues de ${prev.name}`);
           return next;
         }),
+      addAssets: (drafts) =>
+        commit((ws) => {
+          if (!drafts.length) return ws;
+          const now = new Date().toISOString();
+          const added: Asset[] = drafts.map((d) => ({ ...d, id: uid(), createdAt: now, reviewedAt: now }));
+          return log(
+            { ...ws, assets: [...ws.assets, ...added] },
+            added.length === 1 ? `Actif ajouté à l'inventaire : ${added[0].name}` : `${added.length} actifs ajoutés à l'inventaire`,
+            "A.5.9",
+          );
+        }),
+      updateAsset: (id, patch) =>
+        commit((ws) => ({ ...ws, assets: ws.assets.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
+      reviewAsset: (id) =>
+        commit((ws) => {
+          const prev = ws.assets.find((x) => x.id === id);
+          if (!prev) return ws;
+          const next = { ...ws, assets: ws.assets.map((x) => (x.id === id ? { ...x, reviewedAt: new Date().toISOString() } : x)) };
+          return log(next, `Actif revu : ${prev.name}`, "A.5.9");
+        }),
+      removeAsset: (id) =>
+        commit((ws) => {
+          const prev = ws.assets.find((x) => x.id === id);
+          const next = { ...ws, assets: ws.assets.filter((x) => x.id !== id) };
+          return prev ? log(next, `Actif retiré de l'inventaire : ${prev.name}`, "A.5.9") : next;
+        }),
       addTraining: (tr) =>
         commit((ws) => {
           const record: TrainingRecord = { ...tr, id: uid() };
@@ -373,7 +405,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       removeSupplier: (id) =>
         commit((ws) => {
           const prev = ws.suppliers.find((x) => x.id === id);
-          const next = { ...ws, suppliers: ws.suppliers.filter((x) => x.id !== id) };
+          const next = {
+            ...ws,
+            suppliers: ws.suppliers.filter((x) => x.id !== id),
+            assets: ws.assets.map((x) => (x.supplierId === id ? { ...x, supplierId: null } : x)),
+          };
           return prev ? log(next, `Fournisseur supprimé : ${prev.name}`) : next;
         }),
     }),

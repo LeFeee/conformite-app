@@ -6,6 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
 const PROTECTED = [
   "/tableau-de-bord",
   "/controles",
+  "/actifs",
   "/risques",
   "/incidents",
   "/fournisseurs",
@@ -15,6 +16,7 @@ const PROTECTED = [
   "/nis2",
   "/certification",
   "/dossier-audit",
+  "/fiche-securite",
   "/journal",
   "/demarrer",
 ];

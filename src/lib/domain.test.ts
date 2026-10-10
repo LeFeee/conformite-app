@@ -250,3 +250,92 @@ describe("sensibilisation", async () => {
     expect(s.leadersTrained).toBe(true);
   });
 });
+
+describe("inventaire des actifs", async () => {
+  const { suggestedAssets, assetIssues, inventoryReady } = await import("./assets");
+  const { mockAudit } = await import("./readiness");
+
+  it("propose les actifs d'un éditeur SaaS sans locaux", () => {
+    const names = suggestedAssets(equo).map((a) => a.name);
+    expect(names).toEqual(expect.arrayContaining(["Code source", "Base de données de production", "Données clients"]));
+    expect(names).not.toContain("Locaux");
+    expect(names).not.toContain("Dossiers du personnel"); // une seule personne
+  });
+
+  it("exige un inventaire d'au moins 5 actifs, chacun avec un responsable", () => {
+    const ws = createWorkspace(equo, NOW);
+    const asset = (n: number, owner: string | null) => ({
+      ...suggestedAssets(equo)[0], id: `a${n}`, name: `Actif ${n}`, owner, createdAt: NOW.toISOString(), reviewedAt: NOW.toISOString(),
+    });
+    expect(mockAudit(ws, NOW).some((f) => f.id === "inventaire-actifs")).toBe(true);
+    const five = [1, 2, 3, 4, 5].map((n) => asset(n, n === 3 ? null : "Fabien"));
+    expect(inventoryReady(five, NOW)).toBe(false);
+    expect(assetIssues(five[2], NOW)).toContain("sans_proprietaire");
+    const ready = five.map((x) => ({ ...x, owner: "Fabien" }));
+    expect(inventoryReady(ready, NOW)).toBe(true);
+    expect(mockAudit({ ...ws, assets: ready }, NOW).some((f) => f.id === "inventaire-actifs")).toBe(false);
+  });
+
+  it("demande une revue annuelle de chaque fiche", () => {
+    const old = { ...suggestedAssets(equo)[0], id: "x", owner: "Fabien", createdAt: "2025-01-01T00:00:00Z", reviewedAt: "2025-06-01T00:00:00Z" };
+    expect(assetIssues(old, NOW)).toContain("revue_a_faire");
+  });
+});
+
+describe("liens vers les écrans de l'outil", async () => {
+  const { MODULE_CONTROL_IDS } = await import("./modules");
+  it("ne référence que des contrôles existants", () => {
+    const ids = new Set(CONTROLS.map((c) => c.id));
+    for (const id of MODULE_CONTROL_IDS) expect(ids.has(id)).toBe(true);
+  });
+});
+
+describe("fiche sécurité clients", async () => {
+  const { trustSheet, trustSheetText } = await import("./trust");
+  const find = (ws: Workspace, id: string) => trustSheet(ws, NOW).flatMap((s) => s.items).find((i) => i.id === id)!;
+  const base = createWorkspace(equo, NOW);
+
+  it("répond « pas encore » tant que rien n'est fait, sans jamais se dire certifié", () => {
+    expect(find(base, "mfa").answer).toBe("non");
+    expect(find(base, "certification").answer).toBe("en_cours");
+    expect(trustSheetText(base, trustSheet(base, NOW))).not.toMatch(/sommes certifiés|certifiés ISO 27001\s*:\s*Oui/i);
+  });
+
+  it("ne propose un justificatif que si une preuve valide existe", () => {
+    const declared = withControl(base, "A.8.5", { status: "conforme" });
+    expect(find(declared, "mfa")).toMatchObject({ answer: "oui", proof: false });
+    const proven = { ...declared, evidences: [evidence("A.8.5", "2027-10-01")] };
+    expect(find(proven, "mfa")).toMatchObject({ answer: "oui", proof: true });
+    const expired = { ...declared, evidences: [evidence("A.8.5", "2026-10-01")] };
+    expect(find(expired, "mfa").proof).toBe(false);
+  });
+
+  it("répond « en cours » si une partie seulement des mesures est en place", () => {
+    const ws = withControl(base, "A.5.15", { status: "conforme" });
+    expect(find(ws, "droits").answer).toBe("en_cours");
+  });
+
+  it("n'affiche la partie développement que pour un éditeur de logiciel", () => {
+    expect(trustSheet(base, NOW).some((s) => s.title === "Développement")).toBe(true);
+    const noDev = createWorkspace({ ...equo, hasDevelopment: false }, NOW);
+    expect(trustSheet(noDev, NOW).some((s) => s.title === "Développement")).toBe(false);
+  });
+
+  it("présente l'effet cascade NIS2 sans se dire directement soumis", () => {
+    expect(find(base, "nis2")).toMatchObject({ answer: "info" });
+    expect(find(base, "nis2").detail).toMatch(/exigences de sécurité transmises par nos clients/);
+  });
+});
+
+describe("lien actif ↔ fournisseur", async () => {
+  const { guessSupplier } = await import("./assets");
+  const suppliers = [
+    { id: "h", name: "Scaleway", service: "Hébergement de l'application" },
+    { id: "m", name: "Google Workspace", service: "Messagerie" },
+  ];
+  it("retrouve le fournisseur probable d'un actif suggéré", () => {
+    expect(guessSupplier({ name: "Hébergement et infrastructure" }, suppliers)).toBe("h");
+    expect(guessSupplier({ name: "Messagerie et agendas" }, suppliers)).toBe("m");
+    expect(guessSupplier({ name: "Ordinateurs de l'équipe" }, suppliers)).toBeNull();
+  });
+});
